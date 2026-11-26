@@ -2,6 +2,7 @@
 
 - 状态：设计稿
 - 整理日期：2026-11-26
+- 首期实施：[开发实施与进度](github-actions-agy-phase1-implementation.md)
 - 原始讨论：[ChatGPT 分享链接](https://chatgpt.com/share/6b08138e-8174-83e9-a5b7-5f19c339a862)
 
 ## 1. 摘要
@@ -511,12 +512,16 @@ issue_comment.created
 ```text
 .github/workflows/agy-discussion.yml
 .agy/settings.json
+.agy/response.schema.json
 .agy/prompts/system.md
 .agy/prompts/issue-opened.md
 .agy/prompts/issue-comment.md
+scripts/agy/install-agy.sh
 scripts/agy/context.mjs
+scripts/agy/validate-response.mjs
 scripts/agy/run-agent.sh
 scripts/agy/publish.mjs
+scripts/agy/tests/
 ```
 
 可以比完整版本少：

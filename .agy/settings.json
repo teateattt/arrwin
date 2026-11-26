@@ -1,0 +1,20 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/settings.json",
+  "modelProvider": "gemini",
+  "historySize": 0,
+  "agentMode": "",
+  "toolPermission": "strict",
+  "enableTerminalSandbox": true,
+  "permissions": {
+    "deny": [
+      "read_file(*)",
+      "write_file(*)",
+      "read_url(*)",
+      "execute_url(*)",
+      "download_url(*)",
+      "command(*)",
+      "unsandboxed(*)",
+      "mcp(*)"
+    ]
+  }
+}

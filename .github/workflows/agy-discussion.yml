@@ -1,0 +1,81 @@
+name: Agy Discussion
+
+on:
+  issues:
+    types:
+      - opened
+
+  issue_comment:
+    types:
+      - created
+
+permissions: {}
+
+concurrency:
+  group: agy-discussion-${{ github.repository }}-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  discuss:
+    if: >-
+      vars.AGY_DISCUSSION_ENABLED != 'false' &&
+      github.event.sender.type != 'Bot' &&
+      !endsWith(github.event.sender.login, '[bot]') &&
+      (
+        github.event_name == 'issues' ||
+        !contains(github.event.comment.body || '', '<!-- agy:event:')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+    env:
+      AGY_MAX_COMMENTS: ${{ vars.AGY_MAX_COMMENTS || '20' }}
+      AGY_MAX_COMMENT_CHARS: ${{ vars.AGY_MAX_COMMENT_CHARS || '4000' }}
+      AGY_MAX_REPLY_CHARS: ${{ vars.AGY_MAX_REPLY_CHARS || '12000' }}
+      AGY_MODEL_TIMEOUT_MINUTES: ${{ vars.AGY_MODEL_TIMEOUT_MINUTES || '8' }}
+
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Run local checks
+        run: node --test scripts/agy/tests/*.test.mjs
+
+      - name: Prepare GitHub context
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGY_WORK_DIR: ${{ runner.temp }}/agy-work
+        run: node scripts/agy/context.mjs
+
+      - name: Install pinned Agy CLI
+        run: bash scripts/agy/install-agy.sh
+
+      - name: Run Agy without GitHub token
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_GEMINI_BASE_URL: ${{ secrets.GOOGLE_GEMINI_BASE_URL }}
+          AGY_MODEL: ${{ vars.AGY_MODEL }}
+          AGY_WORK_DIR: ${{ runner.temp }}/agy-work
+          EVENT_KIND: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+        run: bash scripts/agy/run-agent.sh
+
+      - name: Publish Agy response
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGY_WORK_DIR: ${{ runner.temp }}/agy-work
+        run: node scripts/agy/publish.mjs
