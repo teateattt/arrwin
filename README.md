@@ -21,6 +21,8 @@
 
 ## 截图
 
+![Screenshot of Arrange Windows GUI v1](Screen_Shot.png)
+
 程序会显示每个窗口的：
 - 程序图标
 - 进程名（蓝色醒目显示）
