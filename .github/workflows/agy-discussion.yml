@@ -68,7 +68,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GOOGLE_GEMINI_BASE_URL: ${{ secrets.GOOGLE_GEMINI_BASE_URL }}
-          AGY_MODEL: ${{ vars.AGY_MODEL }}
+          AGY_MODEL: ${{ vars.AGY_MODEL || 'gemini-3.8-flash-medium' }}
           AGY_WORK_DIR: ${{ runner.temp }}/agy-work
           EVENT_KIND: ${{ github.event_name }}
           EVENT_ACTION: ${{ github.event.action }}

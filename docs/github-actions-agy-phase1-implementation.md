@@ -146,9 +146,9 @@ GitHub Issue/Comment Event
 | `AGY_MAX_COMMENT_CHARS` | `4000` | 单条评论上下文上限 |
 | `AGY_MAX_REPLY_CHARS` | `12000` | Agent 回复上限 |
 | `AGY_MODEL_TIMEOUT_MINUTES` | `8` | 模型调用超时 |
-| `AGY_MODEL` | 留空或固定模型 | 可选，留空使用 CLI 默认模型 |
+| `AGY_MODEL` | `gemini-3.8-flash-medium` | 可选；未设置时 Workflow 默认使用该模型 |
 
-这些 Variable 都有代码内默认值。不是每一项都必须配置，但建议明确设置 `AGY_DISCUSSION_ENABLED`。
+这些 Variable 都有代码内默认值。不是每一项都必须配置，但建议明确设置 `AGY_DISCUSSION_ENABLED`。`AGY_MODEL` 未设置时默认为 `gemini-3.8-flash-medium`，该模型已在中转分组中验证可用。
 
 ### 5.3 Actions 权限
 
@@ -235,6 +235,7 @@ permissions:
 - 将 Checkout 和 Setup Node 升级到 v5，并继续固定到完整 Commit SHA。
 - 增加 `GEMINI_API_KEY` 前置检查，缺失时直接给出明确 Actions 错误。
 - 增加 Gemini Endpoint 格式检查。
+- 将默认模型固定为已在中转分组中验证可用的 `gemini-3.8-flash-medium`。
 - Agy 非零退出时输出 stderr 和结构化错误 JSON，下一次失败可以直接看到真实原因。
 
 ## 9. 上线操作
