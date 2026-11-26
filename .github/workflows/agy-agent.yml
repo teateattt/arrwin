@@ -1,0 +1,66 @@
+name: Antigravity Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Agent task"
+        required: true
+        default: "Review this project and report potential bugs"
+
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Agy
+        run: |
+          curl -fsSL https://antigravity.google/cli/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Configure Gemini API
+        run: |
+          mkdir -p ~/.gemini/antigravity-cli
+          cat > ~/.gemini/antigravity-cli/settings.json <<'EOF'
+          {
+            "modelProvider": "gemini"
+          }
+          EOF
+
+      - name: Run Agent
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TASK: ${{ github.event.inputs.task }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            PROMPT="Review this repository for bugs, security issues and code quality problems. Do not modify files. Provide actionable findings."
+          else
+            PROMPT="$TASK"
+          fi
+
+          agy -p "$PROMPT" \
+            --output-format text \
+            > agent-report.md
+
+          cat agent-report.md
+
+      - name: Upload Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agy-report
+          path: agent-report.md
+          if-no-files-found: ignore
