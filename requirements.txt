@@ -1,0 +1,5 @@
+pywin32>=306
+psutil>=5.9
+Pillow>=9.5
+pystray>=0.19.5,<0.20
+pyvda>=0.5.0

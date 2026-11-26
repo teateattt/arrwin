@@ -1,0 +1,12 @@
+{
+  "window_width": 700,
+  "window_height": 680,
+  "window_offset": 35,
+  "auto_raise_enabled": false,
+  "auto_raise_nudge_overlap": false,
+  "auto_raise_exclude_self": true,
+  "ctrl_move_raise_enabled": false,
+  "ctrl_move_required": true,
+  "ctrl_move_raise_activate": false,
+  "ctrl_move_raise_exclude_self": true
+}
