@@ -31,6 +31,16 @@ from tray_manager import (
     set_windows_app_id,
     show_single_instance_message,
 )
+from ui_theme import (
+    FONT_FAMILY,
+    apply_app_theme,
+    apply_native_window_style,
+    configure_tk_scaling,
+    enable_dpi_awareness,
+    get_theme_palette,
+    get_switch_checkbutton_style,
+    hex_to_rgb,
+)
 try:
     from pyvda import VirtualDesktop, get_virtual_desktops
     PYVDA_AVAILABLE = True
@@ -48,12 +58,14 @@ class WindowArranger:
         root,
         startup_mode=False,
         startup_manager=None,
+        theme_mode="system",
     ):
         self.root = root
         self.window_list = []  # 存储 (hwnd, title, var) 的列表
         self.config_manager = ConfigManager()  # 初始化配置管理器
         self.startup_mode = startup_mode
         self.startup_manager = startup_manager or StartupManager()
+        self.theme_mode = theme_mode
         self._initial_width = None  # 记录初始宽度
         self._initial_height = None  # 记录初始高度
         self._is_resizing = False  # 是否正在调整大小
@@ -77,6 +89,9 @@ class WindowArranger:
         self.root.bind('<Unmap>', self.on_window_unmap)
 
         self.setup_ui()
+        self.root.after_idle(
+            lambda: apply_native_window_style(self.root)
+        )
         self.root.protocol("WM_DELETE_WINDOW", self.hide_to_tray)
         tray_started = self.start_tray()
         self.root.after(250, self.poll_monitor_events)
@@ -214,6 +229,10 @@ class WindowArranger:
 
     def setup_ui(self):
         """初始化界面"""
+        self.theme_mode = apply_app_theme(self.root, self.theme_mode)
+        palette = get_theme_palette(self.root)
+        switch_style = get_switch_checkbutton_style(self.root)
+
         self.root.title(APP_TITLE)
         try:
             self.root.iconbitmap(resource_path('assets', 'arrwin.ico'))
@@ -226,15 +245,8 @@ class WindowArranger:
         self.root.geometry(f'{width}x{height}')
         self.root.resizable(True, True)
 
-        # 设置样式
-        style = ttk.Style()
-        style.theme_use('clam')
-
-        # 配置灰色背景样式
-        style.configure('Gray.TFrame', background='#DCDAD5')
-
         # 主框架
-        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame = ttk.Frame(self.root, padding="12")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
@@ -245,12 +257,12 @@ class WindowArranger:
         title_label = ttk.Label(
             main_frame,
             text='Windows 11 窗口排列工具',
-            font=('Microsoft YaHei UI', 16, 'bold')
+            font=(FONT_FAMILY, 15, 'bold')
         )
-        title_label.grid(row=0, column=0, pady=(0, 10))
+        title_label.grid(row=0, column=0, pady=(0, 12))
 
         # 设置区域
-        settings_frame = ttk.LabelFrame(main_frame, text='排列设置', padding="10")
+        settings_frame = ttk.LabelFrame(main_frame, text='排列设置', padding="12")
         settings_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         settings_frame.columnconfigure(1, weight=1)
 
@@ -276,8 +288,8 @@ class WindowArranger:
         info_label = ttk.Label(
             settings_frame,
             text='提示: 在接近左上角的位置，窗口阶梯排列，不改变窗口大小',
-            font=('Microsoft YaHei UI', 9),
-            foreground='#666666'
+            font=(FONT_FAMILY, 9),
+            style='Muted.TLabel',
         )
         info_label.grid(row=0, column=2, sticky=tk.W)
 
@@ -308,7 +320,8 @@ class WindowArranger:
             settings_frame,
             text='自动显示被完全遮挡的窗口',
             variable=self.auto_raise_var,
-            command=self.toggle_auto_monitor
+            command=self.toggle_auto_monitor,
+            style=switch_style,
         )
         self.auto_raise_check.grid(
             row=2,
@@ -366,7 +379,8 @@ class WindowArranger:
             settings_frame,
             text='启用 Ctrl 悬停提升',
             variable=self.ctrl_move_raise_var,
-            command=self.toggle_ctrl_move_raise
+            command=self.toggle_ctrl_move_raise,
+            style=switch_style,
         )
         self.ctrl_move_raise_check.grid(
             row=4,
@@ -461,6 +475,7 @@ class WindowArranger:
             text='登录 Windows 时自动启动',
             variable=self.startup_var,
             command=self.toggle_startup,
+            style=switch_style,
         )
         self.startup_check.grid(
             row=7,
@@ -472,7 +487,7 @@ class WindowArranger:
         )
 
         # 窗口列表区域
-        list_frame = ttk.LabelFrame(main_frame, text='可见窗口列表', padding="10")
+        list_frame = ttk.LabelFrame(main_frame, text='可见窗口列表', padding="12")
         list_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         list_frame.columnconfigure(0, weight=1)
         list_frame.rowconfigure(1, weight=1)
@@ -487,15 +502,20 @@ class WindowArranger:
         ttk.Button(button_frame, text='刷新列表', command=self.refresh_window_list, width=10).grid(row=0, column=2, padx=5)
 
         # 窗口列表容器（带滚动条）
-        list_container = ttk.Frame(list_frame, style='Gray.TFrame')
+        list_container = ttk.Frame(list_frame, style='List.TFrame')
         list_container.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         list_container.columnconfigure(0, weight=1)
         list_container.rowconfigure(0, weight=1)
 
         # 创建 Canvas 和 Scrollbar
-        canvas = tk.Canvas(list_container, highlightthickness=0, bg='#DCDAD5')
+        canvas = tk.Canvas(
+            list_container,
+            highlightthickness=0,
+            borderwidth=0,
+            bg=palette['surface_alt'],
+        )
         scrollbar = ttk.Scrollbar(list_container, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = ttk.Frame(canvas, style='Gray.TFrame')
+        self.scrollable_frame = ttk.Frame(canvas, style='List.TFrame')
 
         self.scrollable_frame.bind(
             "<Configure>",
@@ -525,7 +545,8 @@ class WindowArranger:
             action_frame,
             text='开始排列',
             command=self.arrange_selected_windows,
-            width=20
+            width=20,
+            style='Accent.TButton',
         )
         self.arrange_btn.grid(row=0, column=0, padx=(0, 10))
 
@@ -537,7 +558,7 @@ class WindowArranger:
         self.status_bar = ttk.Label(
             main_frame,
             textvariable=self.status_var,
-            relief=tk.SUNKEN,
+            style='Status.TLabel',
             anchor=tk.W,
             justify=tk.LEFT,
             wraplength=max(300, width - 40),
@@ -950,6 +971,10 @@ class WindowArranger:
             # 使用 PIL 从 exe 文件提取图标
             from PIL import Image
 
+            background_rgb = hex_to_rgb(
+                get_theme_palette(self.root)["surface"]
+            )
+
             # 尝试直接从 exe 文件加载图标
             # 使用 ExtractIconEx 获取图标句柄
             icon_list = win32gui.ExtractIconEx(exe_path, 0)
@@ -965,10 +990,26 @@ class WindowArranger:
             hbitmap = win32gui.CreateCompatibleBitmap(hdc, size[0], size[1])
             hbitmap_old = win32gui.SelectObject(hdc_mem, hbitmap)
 
-            # 填充灰色背景 (#DCDAD5 = RGB 220, 218, 213)
-            # 创建一个灰色画刷并填充背景
+            # 使用当前主题窗口行的背景色填充透明图标区域
             import ctypes
-            ctypes.windll.gdi32.Rectangle(hdc_mem, 0, 0, size[0], size[1])
+            background_brush = ctypes.windll.gdi32.CreateSolidBrush(
+                win32api.RGB(*background_rgb)
+            )
+            previous_brush = win32gui.SelectObject(
+                hdc_mem,
+                background_brush,
+            )
+            try:
+                ctypes.windll.gdi32.Rectangle(
+                    hdc_mem,
+                    0,
+                    0,
+                    size[0],
+                    size[1],
+                )
+            finally:
+                win32gui.SelectObject(hdc_mem, previous_brush)
+                win32gui.DeleteObject(background_brush)
 
             # 绘制图标
             win32gui.DrawIconEx(hdc_mem, 0, 0, hicon, size[0], size[1], 0, None, 0x0003)
@@ -1041,15 +1082,23 @@ class WindowArranger:
                     img = Image.frombuffer('RGBA', (bmp_info.bmWidth, abs(bmp_info.bmHeight)),
                                          buffer.raw, 'raw', 'BGRA', 0, 1)
 
-                    # 创建一个带灰色背景的图像
-                    background = Image.new("RGBA", img.size, (220, 218, 213, 255))  # #DCDAD5
+                    # 创建与当前主题一致的背景图像
+                    background = Image.new(
+                        "RGBA",
+                        img.size,
+                        background_rgb + (255,),
+                    )
                     background.paste(img, mask=img.split()[3])  # 使用 alpha 通道
                     img = background
 
                     print(f"成功创建图标: {exe_path}")
                 else:
                     print(f"GetDIBits 失败，使用占位符")
-                    img = Image.new("RGBA", size, (220, 218, 213, 255))  # 灰色占位符
+                    img = Image.new(
+                        "RGBA",
+                        size,
+                        background_rgb + (255,),
+                    )
 
                 # 清理资源
                 win32gui.DeleteObject(hbitmap)
@@ -1199,11 +1248,14 @@ class WindowArranger:
             self.window_list.append((hwnd, title, var))
 
             # 创建主框架
-            main_frame = ttk.Frame(self.scrollable_frame, relief=tk.RIDGE, borderwidth=1)
+            main_frame = ttk.Frame(
+                self.scrollable_frame,
+                style='WindowRow.TFrame',
+            )
             main_frame.pack(fill=tk.X, pady=2, padx=2)
 
             # 创建单行显示的框架
-            content_frame = ttk.Frame(main_frame)
+            content_frame = ttk.Frame(main_frame, style='WindowRow.TFrame')
             content_frame.pack(fill=tk.X, padx=5, pady=3)
 
             # 复选框
@@ -1224,13 +1276,12 @@ class WindowArranger:
             if exe_path:
                 import os
                 exe_name = os.path.basename(exe_path)
-                exe_label = tk.Label(
+                exe_label = ttk.Label(
                     content_frame,
                     text=exe_name,
-                    font=('Microsoft YaHei UI', 8),
-                    foreground='#0066CC',
-                    background='#DCDAD5',
-                    anchor=tk.W
+                    font=(FONT_FAMILY, 8),
+                    style='Accent.TLabel',
+                    anchor=tk.W,
                 )
                 exe_label.pack(side=tk.LEFT, padx=(0, 5))
 
@@ -1241,19 +1292,19 @@ class WindowArranger:
             base_label = ttk.Label(
                 content_frame,
                 text=base_text,
-                font=('Microsoft YaHei UI', 8),
-                anchor=tk.W
+                font=(FONT_FAMILY, 8),
+                anchor=tk.W,
             )
             base_label.pack(side=tk.LEFT)
 
             # 添加命令行（简短版本）
             if cmdline and len(cmdline) <= 80:
-                cmdline_label = tk.Label(
+                cmdline_label = ttk.Label(
                     content_frame,
                     text=f" | {cmdline}",
-                    font=('Microsoft YaHei UI', 8),
-                    background='#DCDAD5',
-                    anchor=tk.W
+                    font=(FONT_FAMILY, 8),
+                    style='Muted.TLabel',
+                    anchor=tk.W,
                 )
                 cmdline_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
@@ -1325,6 +1376,7 @@ class WindowArranger:
 
 
 def main():
+    enable_dpi_awareness()
     startup_mode = startup_requested()
     set_windows_app_id()
     startup_manager = StartupManager()
@@ -1342,6 +1394,7 @@ def main():
 
     try:
         root = tk.Tk()
+        configure_tk_scaling(root)
         if startup_mode:
             root.withdraw()
         WindowArranger(

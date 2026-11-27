@@ -15,7 +15,7 @@ pip install -r requirements.txt pyinstaller
 ### 2. 使用命令行打包
 
 ```bash
-pyinstaller --onefile --windowed --name arrange_windows_gui --icon assets\arrwin.ico --add-data "assets;assets" --clean --hidden-import=pyvda --hidden-import=comtypes --hidden-import=pythoncom --hidden-import=pystray --collect-all pyvda --collect-all comtypes --collect-all pystray arrange_windows_gui.py
+pyinstaller --onefile --windowed --name arrange_windows_gui --icon assets\arrwin.ico --add-data "assets;assets" --clean --hidden-import=pyvda --hidden-import=comtypes --hidden-import=pythoncom --hidden-import=pystray --collect-all pyvda --collect-all comtypes --collect-all pystray --collect-all sv_ttk arrange_windows_gui.py
 ```
 
 ### 3. 或使用 spec 文件打包
@@ -34,6 +34,9 @@ pyinstaller arrange_windows_gui.spec
 - **PIL/Pillow**: 图像处理（已有）
 - **psutil**: 进程信息（已有）
 - **pystray**: Windows 系统托盘集成
+- **sv-ttk**: Windows 11 Sun Valley 风格 ttk 主题，需收集包内的 `sv.tcl` 资源
+- **pywinstyles**: Windows 标题栏明暗配色与 DWM 样式适配
+- **darkdetect**: 读取 Windows 应用明暗模式
 - **tkinter**: GUI 界面（Python 内置）
 
 ## 打包选项说明
@@ -56,6 +59,7 @@ dist\arrange_windows_gui.exe
 2. 确保系统已安装 VC++ 运行时
 3. pyvda 需要 Windows 10/11 的虚拟桌面功能
 4. 杀毒软件可能会误报，需要添加信任
+5. `sv-ttk 2.6.0` 要求 Python 3.8 或更高版本；升级到 Python 3.9+ 后可单独评估更新版本
 
 ## 常见问题
 

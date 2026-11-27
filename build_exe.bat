@@ -27,6 +27,17 @@ if errorlevel 1 (
     )
 )
 
+python -c "import sv_ttk, pywinstyles, darkdetect" 2>nul
+if errorlevel 1 (
+    echo Installing UI theme dependencies...
+    pip install "sv-ttk==2.6.0" "pywinstyles==1.8" "darkdetect>=0.8,<1.0"
+    if errorlevel 1 (
+        echo Failed to install UI theme dependencies!
+        pause
+        exit /b 1
+    )
+)
+
 echo [3/5] Cleaning old files...
 if exist "build" rmdir /s /q "build"
 if exist "dist\arrange_windows_gui.exe" del /f "dist\arrange_windows_gui.exe"
@@ -56,6 +67,7 @@ pyinstaller --onefile ^
     --collect-all pyvda ^
     --collect-all comtypes ^
     --collect-all pystray ^
+    --collect-all sv_ttk ^
     arrange_windows_gui.py
 
 if errorlevel 1 (

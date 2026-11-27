@@ -15,7 +15,7 @@
 - ↔️ 可选将完全重叠的窗口轻微错开，露出标题栏
 - 🖱️ 按住 Ctrl 后移动鼠标，可将鼠标下的普通窗口提升到最前
 - 💾 自动保存窗口大小和设置到可编辑的 `config.json`
-- 🎨 现代化的 Tkinter 界面
+- 🎨 基于 Sun Valley 主题的 Windows 11 风格界面，支持系统明暗模式
 - 📥 最小化或关闭时隐藏到系统托盘，后台监控继续运行
 - 🚀 可选择登录 Windows 时自动启动，并静默驻留系统托盘
 
@@ -158,7 +158,9 @@ copy config.json dist\config.json
 ## 技术栈
 
 - Python 3.x
-- Tkinter - 图形界面
+- Tkinter + sv-ttk - Sun Valley 风格图形界面
+- pywinstyles - Windows 标题栏主题适配
+- darkdetect - 系统明暗模式检测
 - pywin32 - Windows API 操作
 - psutil - 进程信息获取
 - Pillow - 图像处理（图标显示）
@@ -167,7 +169,7 @@ copy config.json dist\config.json
 ## 系统要求
 
 - Windows 11/10
-- Python 3.7+
+- Python 3.8+
 - 管理员权限（推荐，用于移动某些系统窗口）
 
 ## 注意事项
