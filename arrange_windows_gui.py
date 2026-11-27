@@ -50,6 +50,23 @@ except ImportError:
 
 
 STARTUP_INITIALIZATION_DELAY_MS = 20_000
+WINDOW_TITLE = "Arrwin"
+
+
+def is_monochrome_icon(image, minimum_pixels=8, max_channel_span=24):
+    """Return whether opaque icon pixels form a low-saturation image."""
+    opaque_pixels = [
+        pixel[:3]
+        for pixel in image.getdata()
+        if pixel[3] >= 200
+    ]
+    if len(opaque_pixels) < minimum_pixels:
+        return False
+    average_span = sum(
+        max(pixel) - min(pixel)
+        for pixel in opaque_pixels
+    ) / len(opaque_pixels)
+    return average_span <= max_channel_span
 
 
 class WindowArranger:
@@ -233,16 +250,17 @@ class WindowArranger:
         palette = get_theme_palette(self.root)
         switch_style = get_switch_checkbutton_style(self.root)
 
-        self.root.title(APP_TITLE)
+        self.root.title(WINDOW_TITLE)
         try:
             self.root.iconbitmap(resource_path('assets', 'arrwin.ico'))
         except tk.TclError:
             pass
 
         # 从配置文件加载窗口尺寸
-        width = self.config_manager.get_window_width()
+        width = max(self.config_manager.get_window_width(), 820)
         height = self.config_manager.get_window_height()
         self.root.geometry(f'{width}x{height}')
+        self.root.minsize(820, 600)
         self.root.resizable(True, True)
 
         # 主框架
@@ -251,23 +269,19 @@ class WindowArranger:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(2, weight=1)
-
-        # 标题
-        title_label = ttk.Label(
-            main_frame,
-            text='Windows 11 窗口排列工具',
-            font=(FONT_FAMILY, 15, 'bold')
-        )
-        title_label.grid(row=0, column=0, pady=(0, 12))
+        main_frame.rowconfigure(1, weight=1)
 
         # 设置区域
         settings_frame = ttk.LabelFrame(main_frame, text='排列设置', padding="12")
-        settings_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        settings_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         settings_frame.columnconfigure(1, weight=1)
 
         # 偏移量设置
-        ttk.Label(settings_frame, text='窗口偏移量 (像素):').grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        ttk.Label(
+            settings_frame,
+            text='窗口偏移量 (像素):',
+            style='Strong.TLabel',
+        ).grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         self.offset_var = tk.IntVar(
             value=self.config_manager.get_window_offset()
         )
@@ -288,25 +302,35 @@ class WindowArranger:
         info_label = ttk.Label(
             settings_frame,
             text='提示: 在接近左上角的位置，窗口阶梯排列，不改变窗口大小',
-            font=(FONT_FAMILY, 9),
+            font=(FONT_FAMILY, 10),
             style='Muted.TLabel',
         )
         info_label.grid(row=0, column=2, sticky=tk.W)
 
         # 桌面选择下拉框（新添加）
-        ttk.Label(settings_frame, text='选择桌面:').grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
+        ttk.Label(
+            settings_frame,
+            text='选择桌面:',
+            style='Strong.TLabel',
+        ).grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
         self.desktop_combobox = ttk.Combobox(
             settings_frame,
             textvariable=self.desktop_var,
             state='readonly',
-            width=20
+            width=20,
+            style='Strong.TCombobox',
+            font=(FONT_FAMILY, 10, 'bold'),
         )
         self.desktop_combobox.grid(row=1, column=1, sticky=tk.W, padx=(0, 20), pady=(10, 0))
         # 绑定选择变化事件
         self.desktop_combobox.bind('<<ComboboxSelected>>', self.on_desktop_changed)
 
         # 自动显示被完全遮挡的窗口
-        ttk.Label(settings_frame, text='遮挡监控:').grid(
+        ttk.Label(
+            settings_frame,
+            text='遮挡监控:',
+            style='Strong.TLabel',
+        ).grid(
             row=2,
             column=0,
             sticky=tk.W,
@@ -326,6 +350,7 @@ class WindowArranger:
         self.auto_raise_check.grid(
             row=2,
             column=1,
+            columnspan=2,
             sticky=tk.W,
             padx=(0, 20),
             pady=(10, 0)
@@ -338,10 +363,11 @@ class WindowArranger:
             settings_frame,
             text='完全重叠时错开标题栏',
             variable=self.overlap_nudge_var,
-            command=self.on_overlap_nudge_changed
+            command=self.on_overlap_nudge_changed,
+            style='Strong.TCheckbutton',
         )
         self.overlap_nudge_check.grid(
-            row=2,
+            row=3,
             column=2,
             sticky=tk.W,
             pady=(10, 0)
@@ -353,19 +379,23 @@ class WindowArranger:
             settings_frame,
             text='排除本程序自身窗口',
             variable=self.auto_raise_exclude_self_var,
-            command=self.on_auto_exclude_self_changed
+            command=self.on_auto_exclude_self_changed,
+            style='Strong.TCheckbutton',
         )
         self.auto_raise_exclude_self_check.grid(
             row=3,
             column=1,
-            columnspan=2,
             sticky=tk.W,
             padx=(0, 20),
             pady=(10, 0)
         )
         self.update_auto_option_states()
 
-        ttk.Label(settings_frame, text='Ctrl 悬停提升:').grid(
+        ttk.Label(
+            settings_frame,
+            text='Ctrl 悬停提升:',
+            style='Strong.TLabel',
+        ).grid(
             row=4,
             column=0,
             sticky=tk.W,
@@ -391,13 +421,6 @@ class WindowArranger:
             pady=(10, 0)
         )
 
-        ttk.Label(settings_frame, text='悬停触发:').grid(
-            row=5,
-            column=0,
-            sticky=tk.W,
-            padx=(0, 10),
-            pady=(10, 0)
-        )
         self.ctrl_move_required_var = tk.BooleanVar(
             value=self.config_manager.get_ctrl_move_required()
         )
@@ -405,7 +428,8 @@ class WindowArranger:
             settings_frame,
             text='必须移动鼠标后触发',
             variable=self.ctrl_move_required_var,
-            command=self.on_ctrl_move_required_changed
+            command=self.on_ctrl_move_required_changed,
+            style='Strong.TCheckbutton',
         )
         self.ctrl_move_required_check.grid(
             row=5,
@@ -422,7 +446,8 @@ class WindowArranger:
             settings_frame,
             text='提升时同时激活目标窗口',
             variable=self.ctrl_move_raise_activate_var,
-            command=self.on_ctrl_move_activate_changed
+            command=self.on_ctrl_move_activate_changed,
+            style='Strong.TCheckbutton',
         )
         self.ctrl_move_raise_activate_check.grid(
             row=5,
@@ -431,13 +456,6 @@ class WindowArranger:
             pady=(10, 0)
         )
 
-        ttk.Label(settings_frame, text='悬停过滤:').grid(
-            row=6,
-            column=0,
-            sticky=tk.W,
-            padx=(0, 10),
-            pady=(10, 0)
-        )
         self.ctrl_move_raise_exclude_self_var = tk.BooleanVar(
             value=self.config_manager.get_ctrl_move_raise_exclude_self()
         )
@@ -445,7 +463,8 @@ class WindowArranger:
             settings_frame,
             text='排除本程序自身窗口',
             variable=self.ctrl_move_raise_exclude_self_var,
-            command=self.on_ctrl_exclude_self_changed
+            command=self.on_ctrl_exclude_self_changed,
+            style='Strong.TCheckbutton',
         )
         self.ctrl_move_raise_exclude_self_check.grid(
             row=6,
@@ -457,7 +476,11 @@ class WindowArranger:
         )
         self.update_ctrl_option_states()
 
-        ttk.Label(settings_frame, text='系统启动:').grid(
+        ttk.Label(
+            settings_frame,
+            text='系统启动:',
+            style='Strong.TLabel',
+        ).grid(
             row=7,
             column=0,
             sticky=tk.W,
@@ -488,7 +511,7 @@ class WindowArranger:
 
         # 窗口列表区域
         list_frame = ttk.LabelFrame(main_frame, text='可见窗口列表', padding="12")
-        list_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        list_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         list_frame.columnconfigure(0, weight=1)
         list_frame.rowconfigure(1, weight=1)
 
@@ -497,9 +520,27 @@ class WindowArranger:
         button_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         button_frame.columnconfigure(0, weight=1)
 
-        ttk.Button(button_frame, text='全选', command=self.select_all, width=10).grid(row=0, column=0, padx=(0, 5))
-        ttk.Button(button_frame, text='全不选', command=self.deselect_all, width=10).grid(row=0, column=1, padx=5)
-        ttk.Button(button_frame, text='刷新列表', command=self.refresh_window_list, width=10).grid(row=0, column=2, padx=5)
+        ttk.Button(
+            button_frame,
+            text='全选',
+            command=self.select_all,
+            width=10,
+            style='Strong.TButton',
+        ).grid(row=0, column=0, padx=(0, 5))
+        ttk.Button(
+            button_frame,
+            text='全不选',
+            command=self.deselect_all,
+            width=10,
+            style='Strong.TButton',
+        ).grid(row=0, column=1, padx=5)
+        ttk.Button(
+            button_frame,
+            text='刷新列表',
+            command=self.refresh_window_list,
+            width=10,
+            style='Strong.TButton',
+        ).grid(row=0, column=2, padx=5)
 
         # 窗口列表容器（带滚动条）
         list_container = ttk.Frame(list_frame, style='List.TFrame')
@@ -538,7 +579,7 @@ class WindowArranger:
 
         # 操作按钮区域
         action_frame = ttk.Frame(main_frame)
-        action_frame.grid(row=3, column=0, pady=(0, 10))
+        action_frame.grid(row=2, column=0, pady=(0, 10))
 
         # 开始排列按钮
         self.arrange_btn = ttk.Button(
@@ -551,7 +592,13 @@ class WindowArranger:
         self.arrange_btn.grid(row=0, column=0, padx=(0, 10))
 
         # 退出按钮
-        ttk.Button(action_frame, text='退出', command=self.exit_app, width=10).grid(row=0, column=1)
+        ttk.Button(
+            action_frame,
+            text='退出',
+            command=self.exit_app,
+            width=10,
+            style='Strong.TButton',
+        ).grid(row=0, column=1)
 
         # 状态栏
         self.status_var = tk.StringVar(value='就绪')
@@ -563,7 +610,7 @@ class WindowArranger:
             justify=tk.LEFT,
             wraplength=max(300, width - 40),
         )
-        self.status_bar.grid(row=4, column=0, sticky=(tk.W, tk.E))
+        self.status_bar.grid(row=3, column=0, sticky=(tk.W, tk.E))
 
     def start_saved_monitors(self):
         """Restore monitor state after the window has been created."""
@@ -959,80 +1006,36 @@ class WindowArranger:
         # 刷新窗口列表
         self.refresh_window_list()
 
-    def get_window_icon(self, exe_path, size=(16, 16)):
-        """从可执行文件获取图标"""
+    def get_window_icon(self, exe_path, size=(20, 20)):
+        """从可执行文件获取图标，保留颜色位图的原始 alpha。"""
         try:
             if not exe_path:
                 return None
 
-            import os
-            import tempfile
-
-            # 使用 PIL 从 exe 文件提取图标
-            from PIL import Image
-
-            background_rgb = hex_to_rgb(
-                get_theme_palette(self.root)["surface"]
+            palette = get_theme_palette(self.root)
+            background_rgb = hex_to_rgb(palette["surface"])
+            foreground_rgb = hex_to_rgb(palette["text"])
+            large_icons, small_icons = win32gui.ExtractIconEx(
+                exe_path,
+                0,
             )
-
-            # 尝试直接从 exe 文件加载图标
-            # 使用 ExtractIconEx 获取图标句柄
-            icon_list = win32gui.ExtractIconEx(exe_path, 0)
-            if not icon_list or not icon_list[0]:
+            if not large_icons:
                 return None
 
-            hicon = icon_list[0][0]
-            print(f"提取到图标: {exe_path}")
-
-            # 创建设备上下文和位图
-            hdc = win32gui.GetDC(0)
-            hdc_mem = win32gui.CreateCompatibleDC(hdc)
-            hbitmap = win32gui.CreateCompatibleBitmap(hdc, size[0], size[1])
-            hbitmap_old = win32gui.SelectObject(hdc_mem, hbitmap)
-
-            # 使用当前主题窗口行的背景色填充透明图标区域
-            import ctypes
-            background_brush = ctypes.windll.gdi32.CreateSolidBrush(
-                win32api.RGB(*background_rgb)
-            )
-            previous_brush = win32gui.SelectObject(
-                hdc_mem,
-                background_brush,
-            )
+            hicon = large_icons[0]
+            hbm_mask = None
+            hbm_color = None
             try:
-                ctypes.windll.gdi32.Rectangle(
-                    hdc_mem,
-                    0,
-                    0,
-                    size[0],
-                    size[1],
-                )
-            finally:
-                win32gui.SelectObject(hdc_mem, previous_brush)
-                win32gui.DeleteObject(background_brush)
+                _, _, _, hbm_mask, hbm_color = win32gui.GetIconInfo(hicon)
+                if not hbm_color:
+                    return None
 
-            # 绘制图标
-            win32gui.DrawIconEx(hdc_mem, 0, 0, hicon, size[0], size[1], 0, None, 0x0003)
+                bitmap = win32gui.GetObject(hbm_color)
+                width = bitmap.bmWidth
+                height = abs(bitmap.bmHeight)
 
-            # 背景已经由 DrawIconEx 处理，但我们稍后在 PIL 中设置背景色
-
-            # 恢复旧位图
-            win32gui.SelectObject(hdc_mem, hbitmap_old)
-
-            # 创建临时文件保存位图
-            temp_file = tempfile.NamedTemporaryFile(suffix='.bmp', delete=False)
-            temp_path = temp_file.name
-            temp_file.close()
-
-            try:
-                # 使用 GetDIBits 获取位图数据
-                import ctypes
                 from ctypes import wintypes
 
-                # 获取位图信息
-                bmp_info = win32gui.GetObject(hbitmap)
-
-                # 创建位图信息头
                 class BITMAPINFOHEADER(ctypes.Structure):
                     _fields_ = [
                         ("biSize", wintypes.DWORD),
@@ -1048,73 +1051,67 @@ class WindowArranger:
                         ("biClrImportant", wintypes.DWORD),
                     ]
 
-                bmi_header = BITMAPINFOHEADER()
-                bmi_header.biSize = ctypes.sizeof(BITMAPINFOHEADER)
-                bmi_header.biWidth = bmp_info.bmWidth
-                bmi_header.biHeight = -bmp_info.bmHeight  # 负值表示顶部向下
-                bmi_header.biPlanes = 1
-                bmi_header.biBitCount = 32  # RGBA
-                bmi_header.biCompression = 0  # BI_RGB
-                bmi_header.biSizeImage = 0
-                bmi_header.biXPelsPerMeter = 0
-                bmi_header.biYPelsPerMeter = 0
-                bmi_header.biClrUsed = 0
-                bmi_header.biClrImportant = 0
+                header = BITMAPINFOHEADER()
+                header.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+                header.biWidth = width
+                header.biHeight = -height
+                header.biPlanes = 1
+                header.biBitCount = 32
+                header.biCompression = 0
 
-                # 分配缓冲区
-                buffer_size = bmp_info.bmWidth * abs(bmp_info.bmHeight) * 4
-                buffer = ctypes.create_string_buffer(buffer_size)
-
-                # 使用 GetDIBits 获取位图数据
-                # 将 PyHANDLE 转换为整数，再转换为指针
-                result = ctypes.windll.gdi32.GetDIBits(
-                    ctypes.c_void_p(int(hdc_mem)),  # HDC
-                    ctypes.c_void_p(int(hbitmap)),  # HBITMAP
-                    0,  # 起始扫描线
-                    abs(bmp_info.bmHeight),  # 扫描线数量
-                    buffer,  # 输出缓冲区
-                    ctypes.byref(bmi_header),  # 位图信息
-                    0  # DIB_RGB_COLORS
-                )
-
-                if result:
-                    # 创建 PIL 图像
-                    img = Image.frombuffer('RGBA', (bmp_info.bmWidth, abs(bmp_info.bmHeight)),
-                                         buffer.raw, 'raw', 'BGRA', 0, 1)
-
-                    # 创建与当前主题一致的背景图像
-                    background = Image.new(
-                        "RGBA",
-                        img.size,
-                        background_rgb + (255,),
-                    )
-                    background.paste(img, mask=img.split()[3])  # 使用 alpha 通道
-                    img = background
-
-                    print(f"成功创建图标: {exe_path}")
-                else:
-                    print(f"GetDIBits 失败，使用占位符")
-                    img = Image.new(
-                        "RGBA",
-                        size,
-                        background_rgb + (255,),
-                    )
-
-                # 清理资源
-                win32gui.DeleteObject(hbitmap)
-                win32gui.DeleteDC(hdc_mem)
-                win32gui.ReleaseDC(0, hdc)
-                win32gui.DestroyIcon(hicon)
-
-                return ImageTk.PhotoImage(img)
-
-            finally:
-                # 删除临时文件
+                buffer = ctypes.create_string_buffer(width * height * 4)
+                hdc = win32gui.GetDC(0)
                 try:
-                    os.unlink(temp_path)
-                except:
-                    pass
+                    result = ctypes.windll.gdi32.GetDIBits(
+                        ctypes.c_void_p(int(hdc)),
+                        ctypes.c_void_p(int(hbm_color)),
+                        0,
+                        height,
+                        buffer,
+                        ctypes.byref(header),
+                        0,
+                    )
+                finally:
+                    win32gui.ReleaseDC(0, hdc)
 
+                if not result:
+                    return None
+
+                icon_image = Image.frombuffer(
+                    'RGBA',
+                    (width, height),
+                    buffer.raw,
+                    'raw',
+                    'BGRA',
+                    0,
+                    1,
+                )
+                if is_monochrome_icon(icon_image):
+                    alpha = icon_image.getchannel("A")
+                    icon_image = Image.new(
+                        "RGBA",
+                        icon_image.size,
+                        foreground_rgb + (0,),
+                    )
+                    icon_image.putalpha(alpha)
+                icon_image = icon_image.resize(
+                    size,
+                    Image.Resampling.LANCZOS,
+                )
+                background = Image.new(
+                    "RGBA",
+                    size,
+                    background_rgb + (255,),
+                )
+                background.alpha_composite(icon_image)
+                return ImageTk.PhotoImage(background.convert("RGB"))
+            finally:
+                if hbm_mask:
+                    win32gui.DeleteObject(hbm_mask)
+                if hbm_color:
+                    win32gui.DeleteObject(hbm_color)
+                for icon in (large_icons or []) + (small_icons or []):
+                    win32gui.DestroyIcon(icon)
         except Exception as e:
             print(f"获取图标失败 ({exe_path}): {e}")
             import traceback
@@ -1279,11 +1276,11 @@ class WindowArranger:
                 exe_label = ttk.Label(
                     content_frame,
                     text=exe_name,
-                    font=(FONT_FAMILY, 8),
+                    font=(FONT_FAMILY, 10),
                     style='Accent.TLabel',
                     anchor=tk.W,
                 )
-                exe_label.pack(side=tk.LEFT, padx=(0, 5))
+                exe_label.pack(side=tk.LEFT, padx=(0, 6))
 
             # 构建基础信息文本
             base_text = f"{title} ({width}x{height}) | [{hwnd}] | PID: {pid}"
@@ -1292,7 +1289,7 @@ class WindowArranger:
             base_label = ttk.Label(
                 content_frame,
                 text=base_text,
-                font=(FONT_FAMILY, 8),
+                font=(FONT_FAMILY, 10),
                 anchor=tk.W,
             )
             base_label.pack(side=tk.LEFT)
@@ -1302,7 +1299,7 @@ class WindowArranger:
                 cmdline_label = ttk.Label(
                     content_frame,
                     text=f" | {cmdline}",
-                    font=(FONT_FAMILY, 8),
+                    font=(FONT_FAMILY, 10),
                     style='Muted.TLabel',
                     anchor=tk.W,
                 )

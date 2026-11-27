@@ -3,6 +3,7 @@
 import ctypes
 import sys
 import tkinter as tk
+from tkinter import font as tkfont
 from tkinter import ttk
 
 try:
@@ -32,6 +33,7 @@ PALETTES = {
         "text": "#1a1a1a",
         "muted": "#616161",
         "accent": "#005fb8",
+        "accent_text": "#ffffff",
         "border": "#d9d9d9",
         "titlebar": "#fafafa",
         "titlebar_text": "#1a1a1a",
@@ -43,6 +45,7 @@ PALETTES = {
         "text": "#fafafa",
         "muted": "#b3b3b3",
         "accent": "#60cdff",
+        "accent_text": "#000000",
         "border": "#3a3a3a",
         "titlebar": "#1c1c1c",
         "titlebar_text": "#ffffff",
@@ -110,7 +113,11 @@ def get_switch_checkbutton_style(root):
         layout = style.layout("Switch.TCheckbutton")
     except tk.TclError:
         layout = None
-    return "Switch.TCheckbutton" if layout else "TCheckbutton"
+    return (
+        "Strong.Switch.TCheckbutton"
+        if layout
+        else "Strong.TCheckbutton"
+    )
 
 
 def hex_to_rgb(color):
@@ -136,6 +143,10 @@ def apply_app_theme(root, preference="system"):
 
     style = ttk.Style(root)
     style.configure(
+        ".",
+        font=(FONT_FAMILY, 10, "bold"),
+    )
+    style.configure(
         "Accent.TLabel",
         foreground=palette["accent"],
     )
@@ -146,7 +157,8 @@ def apply_app_theme(root, preference="system"):
     style.configure(
         "Status.TLabel",
         background=palette["window_bg"],
-        foreground=palette["muted"],
+        foreground=palette["text"],
+        font=(FONT_FAMILY, 10, "bold"),
         padding=(8, 6),
     )
     style.configure(
@@ -157,11 +169,124 @@ def apply_app_theme(root, preference="system"):
         "WindowRow.TFrame",
         background=palette["surface"],
     )
+    style.configure(
+        "TLabelframe.Label",
+        foreground=palette["text"],
+        font=(FONT_FAMILY, 10, "bold"),
+    )
+    style.configure(
+        "Strong.TButton",
+        font=(FONT_FAMILY, 10, "bold"),
+        foreground=palette["text"],
+        padding=(10, 5),
+    )
+    style.map(
+        "Strong.TButton",
+        foreground=[
+            ("disabled", palette["muted"]),
+            ("pressed", palette["text"]),
+            ("active", palette["text"]),
+        ],
+    )
+    style.configure(
+        "Accent.TButton",
+        font=(FONT_FAMILY, 10, "bold"),
+        foreground=palette["accent_text"],
+        padding=(10, 5),
+    )
+    style.map(
+        "Accent.TButton",
+        foreground=[
+            ("disabled", palette["muted"]),
+            ("pressed", palette["accent_text"]),
+            ("active", palette["accent_text"]),
+        ],
+    )
+    style.configure(
+        "Strong.TLabel",
+        font=(FONT_FAMILY, 10, "bold"),
+        foreground=palette["text"],
+    )
+    style.configure(
+        "Strong.TCheckbutton",
+        font=(FONT_FAMILY, 10, "bold"),
+        foreground=palette["text"],
+        padding=(0, 2),
+    )
+    style.map(
+        "Strong.TCheckbutton",
+        foreground=[
+            ("disabled", palette["muted"]),
+            ("pressed", palette["text"]),
+            ("active", palette["text"]),
+            ("!disabled", palette["text"]),
+        ],
+    )
+    style.configure(
+        "Strong.Switch.TCheckbutton",
+        font=(FONT_FAMILY, 10, "bold"),
+        foreground=palette["text"],
+        padding=(0, 2),
+    )
+    style.map(
+        "Strong.Switch.TCheckbutton",
+        foreground=[
+            ("disabled", palette["muted"]),
+            ("pressed", palette["text"]),
+            ("active", palette["text"]),
+            ("!disabled", palette["text"]),
+        ],
+    )
+    style.configure(
+        "TCombobox",
+        font=(FONT_FAMILY, 10, "bold"),
+    )
+    style.configure(
+        "Strong.TCombobox",
+        font=(FONT_FAMILY, 10, "bold"),
+        foreground=palette["text"],
+        fieldbackground=palette["surface"],
+        padding=(8, 4),
+    )
+    style.map(
+        "Strong.TCombobox",
+        foreground=[
+            ("disabled", palette["muted"]),
+            ("readonly", palette["text"]),
+            ("focus", palette["text"]),
+            ("active", palette["text"]),
+        ],
+        fieldbackground=[
+            ("disabled", palette["surface_alt"]),
+            ("readonly", palette["surface"]),
+            ("focus", palette["surface"]),
+            ("active", palette["surface"]),
+        ],
+    )
+    root.option_add(
+        "*TCombobox*Listbox.font",
+        (FONT_FAMILY, 10, "bold"),
+    )
+    root.option_add(
+        "*TCombobox*Listbox.background",
+        palette["surface"],
+    )
+    root.option_add(
+        "*TCombobox*Listbox.foreground",
+        palette["text"],
+    )
+    root.option_add(
+        "*TCombobox*Listbox.selectBackground",
+        palette["accent"],
+    )
+    root.option_add(
+        "*TCombobox*Listbox.selectForeground",
+        palette["accent_text"],
+    )
 
     if sv_ttk is None:
         style.configure(
             "Accent.TButton",
-            foreground="#ffffff",
             background=palette["accent"],
         )
 
@@ -190,13 +315,34 @@ def enable_dpi_awareness():
 
 
 def configure_tk_scaling(root):
-    """Align Tk's point conversion with the active system DPI."""
+    """Align Tk scaling and core fonts with the active system DPI."""
     try:
-        pixels_per_inch = float(root.winfo_fpixels("1i"))
+        pixels_per_inch = float(round(root.winfo_fpixels("1i")))
         if pixels_per_inch > 0:
             root.tk.call("tk", "scaling", pixels_per_inch / 72.0)
     except (tk.TclError, ValueError):
         pass
+
+    for font_name in (
+        "TkDefaultFont",
+        "TkTextFont",
+        "TkMenuFont",
+        "TkHeadingFont",
+        "TkCaptionFont",
+        "TkTooltipFont",
+    ):
+        try:
+            tkfont.Font(
+                root=root,
+                name=font_name,
+                exists=True,
+            ).configure(
+                family=FONT_FAMILY,
+                size=10,
+                weight="bold",
+            )
+        except tk.TclError:
+            pass
 
 
 def apply_native_window_style(root):

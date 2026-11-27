@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 DEFAULT_CONFIG = {
-    "window_width": 700,
+    "window_width": 820,
     "window_height": 680,
     "window_offset": 35,
     "auto_raise_enabled": False,
