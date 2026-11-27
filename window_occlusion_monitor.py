@@ -59,6 +59,11 @@ _user32.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
 _user32.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
 _user32.IsZoomed.argtypes = [wintypes.HWND]
 _user32.IsZoomed.restype = wintypes.BOOL
+try:
+    _user32.IsWindowArranged.argtypes = [wintypes.HWND]
+    _user32.IsWindowArranged.restype = wintypes.BOOL
+except AttributeError:
+    pass
 _user32.SetWindowPos.argtypes = [
     wintypes.HWND,
     wintypes.HWND,
@@ -120,6 +125,7 @@ class MonitorWindow:
     root_owner: int = 0
     maximized: bool = False
     fullscreen: bool = False
+    arranged: bool = False
     monitor_id: str = ""
 
 
@@ -276,7 +282,11 @@ def find_suspending_windows(windows, foreground_hwnd=None):
             and foreground_hwnd is not None
             and window.hwnd == foreground_hwnd
         )
-        if not (window.maximized or foreground_fullscreen):
+        if not (
+            window.maximized
+            or foreground_fullscreen
+            or window.arranged
+        ):
             continue
         suspending.setdefault(window.monitor_id, window)
     return suspending
@@ -385,6 +395,13 @@ def is_eligible_monitor_window(ex_style, owner, window_class):
     )
 
 
+def _is_window_arranged(hwnd):
+    try:
+        return bool(_user32.IsWindowArranged(hwnd))
+    except (AttributeError, OSError, ValueError):
+        return False
+
+
 def same_window_group(target, blocker):
     """Return whether two windows belong to the same application group."""
     same_process = (
@@ -448,6 +465,7 @@ def _enumerate_monitor_windows(exclude_current_process=True):
                 root_owner=root_owner,
                 maximized=maximized,
                 fullscreen=fullscreen,
+                arranged=_is_window_arranged(hwnd),
                 monitor_id=monitor_id,
             )
         except Exception:
@@ -871,7 +889,10 @@ class WindowOcclusionMonitor:
             window = suspending_windows[monitor_id]
             self._emit(
                 "paused",
-                "检测到最大化或全屏窗口，已暂停显示器 {0} 上的自动提升".format(
+                (
+                    "检测到最大化、全屏或贴靠布局窗口，"
+                    "已暂停显示器 {0} 上的自动提升"
+                ).format(
                     format_monitor_name(monitor_id)
                 ),
                 window.hwnd,
@@ -881,7 +902,10 @@ class WindowOcclusionMonitor:
         for monitor_id in sorted(previous_ids - current_ids):
             self._emit(
                 "resumed",
-                "显示器 {0} 已无最大化或全屏窗口，恢复自动提升".format(
+                (
+                    "显示器 {0} 已无最大化、全屏或贴靠布局窗口，"
+                    "恢复自动提升"
+                ).format(
                     format_monitor_name(monitor_id)
                 ),
             )

@@ -373,7 +373,10 @@ class CursorRaiseMonitor:
         for monitor_id in sorted(current_ids - previous_ids):
             self._emit(
                 "paused",
-                "检测到最大化或全屏窗口，已暂停显示器 {0} 上的 Ctrl 悬停提升".format(
+                (
+                    "检测到最大化、全屏或贴靠布局窗口，"
+                    "已暂停显示器 {0} 上的 Ctrl 悬停提升"
+                ).format(
                     format_monitor_name(monitor_id)
                 ),
             )
@@ -381,7 +384,10 @@ class CursorRaiseMonitor:
         for monitor_id in sorted(previous_ids - current_ids):
             self._emit(
                 "resumed",
-                "显示器 {0} 已无最大化或全屏窗口，恢复 Ctrl 悬停提升".format(
+                (
+                    "显示器 {0} 已无最大化、全屏或贴靠布局窗口，"
+                    "恢复 Ctrl 悬停提升"
+                ).format(
                     format_monitor_name(monitor_id)
                 ),
             )
