@@ -26,6 +26,7 @@ FONT_FAMILY = "Microsoft YaHei UI"
 THEME_PREFERENCES = ("system", "light", "dark")
 DWMWA_BORDER_COLOR = 34
 DWMWA_CAPTION_COLOR = 35
+DWMWA_COLOR_DEFAULT = 0xFFFFFFFF
 DWMWA_COLOR_NONE = 0xFFFFFFFE
 EXPERIMENTAL_CLIENT_MICA_ALPHA = 0.97
 
@@ -520,7 +521,8 @@ def apply_native_window_style(root):
             )
             # DWMWCP_ROUND.
             set_dwm_attribute(hwnd, 33, 2)
-            # Let the system backdrop show through active title bars/borders.
+            # Keep the title bar transparent, but let Windows color the
+            # active border from the current system accent setting.
             set_dwm_attribute(
                 hwnd,
                 DWMWA_CAPTION_COLOR,
@@ -529,7 +531,7 @@ def apply_native_window_style(root):
             set_dwm_attribute(
                 hwnd,
                 DWMWA_BORDER_COLOR,
-                DWMWA_COLOR_NONE,
+                DWMWA_COLOR_DEFAULT,
             )
             pywinstyles.change_title_color(
                 root,
