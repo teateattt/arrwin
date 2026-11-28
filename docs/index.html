@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Arrwin 是一款轻巧的 Windows 窗口排列工具。一键整理桌面、自动显示被遮挡窗口，并支持 Ctrl 悬停置前。"
+    />
+    <meta name="theme-color" content="#f4f6f1" />
+    <title>Arrwin - 让窗口各归其位</title>
+    <script>document.documentElement.classList.add("js");</script>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+    <div class="scroll-progress" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Arrwin 首页">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span>
+          <span></span>
+        </span>
+        <span class="brand-name">Arrwin</span>
+      </a>
+
+      <button
+        class="menu-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+      >
+        <span class="sr-only">打开导航</span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+      </button>
+
+      <nav class="site-nav" id="site-nav" aria-label="主要导航">
+        <a href="#features">功能</a>
+        <a href="#workflow">使用方式</a>
+        <a href="#faq">常见问题</a>
+        <a class="nav-source" href="https://github.com/teateattt/arrwin" target="_blank" rel="noreferrer">
+          GitHub
+          <span aria-hidden="true">↗</span>
+        </a>
+      </nav>
+
+      <a
+        class="button button-small header-cta"
+        href="https://github.com/teateattt/arrwin/releases"
+        target="_blank"
+        rel="noreferrer"
+      >
+        下载 Arrwin
+        <span class="button-arrow" aria-hidden="true">↓</span>
+      </a>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="hero-grid" aria-hidden="true"></div>
+        <div class="hero-copy">
+          <div class="eyebrow reveal">
+            <span class="status-dot" aria-hidden="true"></span>
+            Windows 10 / 11 · 轻量桌面工具
+          </div>
+          <h1 class="reveal">
+            让窗口<br />
+            <span class="accent-word">各归其位。</span>
+          </h1>
+          <p class="hero-lead reveal">
+            不再翻找被压住的窗口，也不再忍受满屏重叠。Arrwin
+            帮你把桌面整理成清晰的阶梯，需要时，一个 Ctrl 就能让窗口回到眼前。
+          </p>
+          <div class="hero-actions reveal">
+            <a
+              class="button button-primary"
+              href="https://github.com/teateattt/arrwin/releases"
+              target="_blank"
+              rel="noreferrer"
+            >
+              下载 Windows 版
+              <span class="button-arrow" aria-hidden="true">↓</span>
+            </a>
+            <a class="text-link" href="#features">
+              看看它能做什么
+              <span aria-hidden="true">→</span>
+            </a>
+          </div>
+          <div class="hero-meta reveal" aria-label="产品特点">
+            <span>便携运行</span>
+            <span>无需常驻主窗口</span>
+            <span>配置可编辑</span>
+          </div>
+        </div>
+
+        <div class="hero-demo reveal" aria-label="可交互的窗口排列演示">
+          <div class="demo-topbar">
+            <div class="demo-label">
+              <span class="demo-live" aria-hidden="true"></span>
+              ARRWIN DESKTOP
+            </div>
+            <div class="demo-system">
+              <span id="demo-clock">09:41</span>
+              <span class="demo-wifi" aria-hidden="true"></span>
+            </div>
+          </div>
+
+          <div class="window-stage" id="window-stage">
+            <div class="desktop-caption">
+              <span>桌面 01</span>
+              <span id="stage-status">3 个窗口正在排队</span>
+            </div>
+
+            <article class="demo-window demo-window-one" data-window="0" tabindex="0">
+              <header class="demo-window-bar">
+                <span class="app-dot app-dot-lime" aria-hidden="true"></span>
+                <span class="demo-window-title">产品路线图</span>
+                <span class="window-controls" aria-hidden="true">
+                  <i></i><i></i><i></i>
+                </span>
+              </header>
+              <div class="demo-window-body roadmap-body">
+                <div class="roadmap-heading">
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="roadmap-columns">
+                  <div><i></i><i></i><i></i></div>
+                  <div><i></i><i></i></div>
+                  <div><i></i><i></i><i></i></div>
+                </div>
+                <div class="roadmap-progress"><span></span></div>
+              </div>
+            </article>
+
+            <article class="demo-window demo-window-two" data-window="1" tabindex="0">
+              <header class="demo-window-bar">
+                <span class="app-dot app-dot-coral" aria-hidden="true"></span>
+                <span class="demo-window-title">资源管理器</span>
+                <span class="window-controls" aria-hidden="true">
+                  <i></i><i></i><i></i>
+                </span>
+              </header>
+              <div class="demo-window-body files-body">
+                <aside>
+                  <i></i><i></i><i></i><i></i>
+                </aside>
+                <div class="file-list">
+                  <span><i></i>设计稿.fig</span>
+                  <span><i></i>项目资料</span>
+                  <span><i></i>发布说明.md</span>
+                  <span><i></i>封面素材</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="demo-window demo-window-three" data-window="2" tabindex="0">
+              <header class="demo-window-bar">
+                <span class="app-dot app-dot-mint" aria-hidden="true"></span>
+                <span class="demo-window-title">ChatGPT</span>
+                <span class="window-controls" aria-hidden="true">
+                  <i></i><i></i><i></i>
+                </span>
+              </header>
+              <div class="demo-window-body chat-body">
+                <div class="chat-bubble chat-bubble-muted"></div>
+                <div class="chat-bubble chat-bubble-accent"></div>
+                <div class="chat-input">
+                  <span></span>
+                  <i aria-hidden="true">↑</i>
+                </div>
+              </div>
+            </article>
+
+            <div class="drag-hint">
+              <span class="drag-hint-icon" aria-hidden="true">↖</span>
+              拖动窗口，或让 Arrwin 整理
+            </div>
+          </div>
+
+          <div class="demo-controls">
+            <div class="demo-control-copy">
+              <label for="window-gap">排列间距</label>
+              <output id="gap-output" for="window-gap">35 px</output>
+            </div>
+            <input
+              id="window-gap"
+              class="range-input"
+              type="range"
+              min="12"
+              max="46"
+              value="35"
+              aria-label="调整窗口排列间距"
+            />
+            <div class="demo-buttons">
+              <button class="button button-lime" id="arrange-button" type="button">
+                一键整理
+                <span class="button-arrow" aria-hidden="true">↗</span>
+              </button>
+              <button class="icon-button" id="reset-button" type="button" aria-label="恢复窗口位置" title="恢复窗口位置">
+                ↺
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-note reveal">
+          <span class="hero-note-number">01</span>
+          <p>窗口只改变位置，不改变大小。你熟悉的桌面，还在原来的地方。</p>
+        </div>
+      </section>
+
+      <section class="marquee-band" aria-label="功能关键词">
+        <div class="marquee-track">
+          <span>一键阶梯排列</span><i aria-hidden="true"></i>
+          <span>Ctrl 悬停置前</span><i aria-hidden="true"></i>
+          <span>自动发现遮挡</span><i aria-hidden="true"></i>
+          <span>托盘静默运行</span><i aria-hidden="true"></i>
+          <span>多显示器感知</span><i aria-hidden="true"></i>
+          <span aria-hidden="true">一键阶梯排列</span><i aria-hidden="true"></i>
+          <span aria-hidden="true">Ctrl 悬停置前</span><i aria-hidden="true"></i>
+          <span aria-hidden="true">自动发现遮挡</span><i aria-hidden="true"></i>
+          <span aria-hidden="true">托盘静默运行</span><i aria-hidden="true"></i>
+          <span aria-hidden="true">多显示器感知</span><i aria-hidden="true"></i>
+        </div>
+      </section>
+
+      <section class="features section-shell" id="features">
+        <div class="section-heading reveal">
+          <div>
+            <span class="section-index">01 / FEATURES</span>
+            <h2>不止是排整齐。</h2>
+          </div>
+          <p>
+            Arrwin 关注的是整理桌面之后的事：窗口会不会再次消失，重要内容会不会被盖住，以及它能不能安静地待在后台。
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card occlusion-card reveal">
+            <div class="feature-card-head">
+              <span class="feature-kicker">遮挡监控</span>
+              <span class="feature-status" id="occlusion-status">已开启</span>
+            </div>
+            <h3>被盖住的窗口，<br />自己会回来。</h3>
+            <p>持续检测完全被遮挡的普通窗口，轻推回桌面最前层，不打断正在进行的操作。</p>
+            <div class="occlusion-visual" id="occlusion-visual" aria-hidden="true">
+              <div class="occlusion-window back-window">
+                <span></span><span></span>
+              </div>
+              <div class="occlusion-window front-window">
+                <span></span><span></span>
+              </div>
+              <div class="occlusion-signal">
+                <i></i><i></i><i></i>
+              </div>
+            </div>
+            <button class="switch-control" id="occlusion-toggle" type="button" aria-pressed="true">
+              <span class="switch-track" aria-hidden="true"><i></i></span>
+              <span class="switch-label">自动显示被遮挡窗口</span>
+            </button>
+          </article>
+
+          <article class="feature-card ctrl-card reveal">
+            <div class="feature-card-head">
+              <span class="feature-kicker">CTRL 悬停提升</span>
+              <span class="micro-label">01 个动作</span>
+            </div>
+            <h3>按住 Ctrl，<br />窗口就位。</h3>
+            <p>鼠标移到被压住的窗口上，按住 Ctrl 并轻轻移动，就能把它提到前面。</p>
+            <div class="ctrl-visual" aria-hidden="true">
+              <div class="key-pair">
+                <span class="key">Ctrl</span>
+                <span class="plus">+</span>
+                <span class="cursor-shape"></span>
+              </div>
+              <div class="ctrl-trace">
+                <span></span>
+              </div>
+            </div>
+            <div class="feature-footnote">
+              <span class="footnote-dot" aria-hidden="true"></span>
+              可设置为提升时激活目标窗口，默认不切换焦点
+            </div>
+          </article>
+
+          <article class="feature-card multi-card reveal">
+            <div class="feature-card-head">
+              <span class="feature-kicker">多显示器感知</span>
+              <span class="micro-label">更聪明</span>
+            </div>
+            <h3>一块屏专注，<br />另一块继续工作。</h3>
+            <p>检测最大化、贴靠和全屏状态，只暂停受影响的那一块显示器。</p>
+            <div class="monitor-visual" aria-hidden="true">
+              <div class="monitor monitor-one">
+                <span class="screen-line"></span>
+                <span class="screen-line short"></span>
+                <span class="monitor-pill">贴靠中</span>
+              </div>
+              <div class="monitor monitor-two">
+                <div class="screen-grid">
+                  <span></span><span></span><span></span><span></span>
+                </div>
+              </div>
+              <span class="monitor-base one"></span>
+              <span class="monitor-base two"></span>
+            </div>
+          </article>
+
+          <article class="feature-card tray-card reveal">
+            <div class="feature-card-head">
+              <span class="feature-kicker">系统托盘</span>
+              <span class="micro-label">安静运行</span>
+            </div>
+            <div class="tray-card-layout">
+              <div>
+                <h3>关上窗口，<br />它还在。</h3>
+                <p>最小化或关闭主界面后，后台监控继续工作。双击托盘图标即可回来。</p>
+              </div>
+              <div class="tray-visual" aria-hidden="true">
+                <div class="tray-icon">
+                  <span></span><span></span>
+                </div>
+                <div class="tray-menu">
+                  <span>打开主窗口</span>
+                  <span>开始排列</span>
+                  <span>退出程序</span>
+                </div>
+                <div class="tray-time">09:41</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="feature-card config-card reveal">
+            <div class="feature-card-head">
+              <span class="feature-kicker">透明配置</span>
+              <span class="micro-label">JSON</span>
+            </div>
+            <h3>你的设置，<br />看得见也改得动。</h3>
+            <div class="code-window" aria-label="配置文件示例">
+              <div class="code-window-bar">
+                <span>config.json</span>
+                <i aria-hidden="true"></i>
+              </div>
+              <pre><code>{
+  <span class="code-key">"offset"</span>: <span class="code-number">35</span>,
+  <span class="code-key">"auto_reveal"</span>: <span class="code-bool">true</span>,
+  <span class="code-key">"ctrl_raise"</span>: <span class="code-bool">true</span>
+}</code></pre>
+            </div>
+            <p class="compact-copy">界面修改自动保存，也可以直接编辑文件，下次启动生效。</p>
+          </article>
+
+          <article class="feature-card start-card reveal">
+            <div class="feature-card-head">
+              <span class="feature-kicker">随系统启动</span>
+              <span class="micro-label">可选</span>
+            </div>
+            <h3>从登录开始，<br />桌面就有秩序。</h3>
+            <p>按需开启开机自启，静默驻留托盘。无需管理员权限，也不会重复启动。</p>
+            <div class="start-visual" aria-hidden="true">
+              <div class="start-orbit orbit-one"></div>
+              <div class="start-orbit orbit-two"></div>
+              <div class="start-core">
+                <span class="brand-mark mini-mark"><span></span><span></span></span>
+              </div>
+              <span class="orbit-label label-one">STARTUP</span>
+              <span class="orbit-label label-two">TRAY</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="workflow" id="workflow">
+        <div class="workflow-inner section-shell">
+          <div class="workflow-copy reveal">
+            <span class="section-index light-index">02 / WORKFLOW</span>
+            <h2>一次整理，<br />三种顺手。</h2>
+            <p>
+              你可以手动选中窗口开始排列，也可以让 Arrwin
+              在后台处理遮挡，或者用 Ctrl 精准找回眼前被压住的那一个。
+            </p>
+            <a
+              class="button button-outline-light"
+              href="https://github.com/teateattt/arrwin#%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95"
+              target="_blank"
+              rel="noreferrer"
+            >
+              查看使用说明
+              <span class="button-arrow" aria-hidden="true">↗</span>
+            </a>
+          </div>
+
+          <div class="workflow-steps reveal">
+            <article class="workflow-step">
+              <span class="step-number">01</span>
+              <div class="step-copy">
+                <h3>扫描窗口</h3>
+                <p>列出当前桌面的可见窗口，勾选你真正想整理的那些。</p>
+              </div>
+              <div class="step-visual scan-visual" aria-hidden="true">
+                <span></span><span></span><span></span>
+                <i></i>
+              </div>
+            </article>
+            <article class="workflow-step">
+              <span class="step-number">02</span>
+              <div class="step-copy">
+                <h3>设好间距</h3>
+                <p>从 10 到 200 像素自由调整，找到最适合当前屏幕的节奏。</p>
+              </div>
+              <div class="step-visual gap-visual" aria-hidden="true">
+                <div class="gap-window"></div>
+                <div class="gap-window"></div>
+                <span class="gap-measure">35 px</span>
+              </div>
+            </article>
+            <article class="workflow-step">
+              <span class="step-number">03</span>
+              <div class="step-copy">
+                <h3>开始排列</h3>
+                <p>窗口从左下向右上铺开，不改变尺寸，也不会遮住标题栏。</p>
+              </div>
+              <div class="step-visual stack-visual" aria-hidden="true">
+                <div></div><div></div><div></div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="desktop-story section-shell">
+        <div class="story-visual reveal">
+          <div class="story-grid" aria-hidden="true"></div>
+          <div class="story-app">
+            <div class="story-titlebar">
+              <span class="story-brand">
+                <span class="brand-mark tiny-mark" aria-hidden="true"><span></span><span></span></span>
+                Arrwin
+              </span>
+              <span class="story-titlebar-actions" aria-hidden="true">—　□　×</span>
+            </div>
+            <div class="story-panel">
+              <div class="story-section-title">
+                <span>排列设置</span>
+                <span class="story-live">实时生效</span>
+              </div>
+              <div class="story-control-row">
+                <span>窗口偏移量</span>
+                <div class="story-stepper"><i>−</i><b>35</b><i>+</i></div>
+              </div>
+              <div class="story-toggle-row">
+                <span>自动显示被完全遮挡的窗口</span>
+                <span class="story-switch on"><i></i></span>
+              </div>
+              <div class="story-toggle-row">
+                <span>启用 Ctrl 悬停提升</span>
+                <span class="story-switch on"><i></i></span>
+              </div>
+              <div class="story-toggle-row">
+                <span>登录 Windows 时自动启动</span>
+                <span class="story-switch on"><i></i></span>
+              </div>
+              <div class="story-divider"></div>
+              <div class="story-window-row">
+                <span class="story-check"></span>
+                <span class="story-browser-icon">G</span>
+                <span>
+                  <b>ChatGPT.exe</b>
+                  <small>ChatGPT · 2184 × 1271</small>
+                </span>
+                <em>PID 15888</em>
+              </div>
+              <div class="story-window-row">
+                <span class="story-check"></span>
+                <span class="story-folder-icon"></span>
+                <span>
+                  <b>explorer.exe</b>
+                  <small>arrwin 和 15 个其他选项卡</small>
+                </span>
+                <em>PID 6604</em>
+              </div>
+              <div class="story-actions">
+                <span>全选</span>
+                <span>全不选</span>
+                <span>刷新列表</span>
+              </div>
+              <div class="story-primary-action">开始排列</div>
+            </div>
+            <div class="story-statusbar">
+              <span class="status-dot"></span>
+              找到 2 个可见窗口
+            </div>
+          </div>
+          <div class="story-float story-float-one">
+            <span class="float-icon">↗</span>
+            <span><b>排列完成</b><small>3 个窗口 · 0.18s</small></span>
+          </div>
+          <div class="story-float story-float-two">
+            <span class="story-switch on"><i></i></span>
+            <span><b>遮挡监控</b><small>运行中</small></span>
+          </div>
+        </div>
+
+        <div class="story-copy reveal">
+          <span class="section-index">03 / EVERYDAY</span>
+          <h2>让桌面适应你，<br />而不是反过来。</h2>
+          <p>
+            Arrwin 把复杂的窗口操作收进一个简单界面。设置一次，接下来就交给它：保持间距、发现遮挡、记住状态。
+          </p>
+          <ul class="check-list">
+            <li><span aria-hidden="true">✓</span> 自动保存窗口大小与设置</li>
+            <li><span aria-hidden="true">✓</span> 多显示器分别判断工作状态</li>
+            <li><span aria-hidden="true">✓</span> 系统明暗主题自动适配</li>
+          </ul>
+          <a
+            class="text-link dark-link"
+            href="https://github.com/teateattt/arrwin"
+            target="_blank"
+            rel="noreferrer"
+          >
+            浏览项目源码
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="quick-start">
+        <div class="section-shell">
+          <div class="quick-start-heading reveal">
+            <span class="section-index">04 / GET STARTED</span>
+            <h2>从下载，到整理完桌面。</h2>
+            <p>不需要复杂配置。下载、运行，然后给窗口留一点呼吸的空间。</p>
+          </div>
+          <div class="quick-steps">
+            <article class="quick-step reveal">
+              <span>1</span>
+              <div>
+                <h3>下载程序</h3>
+                <p>前往 GitHub Releases 获取 Windows 版本。</p>
+              </div>
+            </article>
+            <article class="quick-step reveal">
+              <span>2</span>
+              <div>
+                <h3>运行 Arrwin</h3>
+                <p>无需安装到系统目录，双击即可启动。</p>
+              </div>
+            </article>
+            <article class="quick-step reveal">
+              <span>3</span>
+              <div>
+                <h3>整理一次</h3>
+                <p>选择窗口、设好间距，让桌面重新拥有秩序。</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="faq section-shell" id="faq">
+        <div class="faq-heading reveal">
+          <span class="section-index">05 / FAQ</span>
+          <h2>你可能还想知道。</h2>
+          <p>关于窗口、权限和后台运行的一些常见问题。</p>
+        </div>
+        <div class="faq-list reveal">
+          <details>
+            <summary>
+              <span>Arrwin 会不会改变窗口大小？</span>
+              <i aria-hidden="true">+</i>
+            </summary>
+            <div class="faq-answer">
+              不会。默认排列只调整窗口位置。完全重叠时，可以按需开启“错开标题栏”，让每个窗口的标题栏更容易被点到。
+            </div>
+          </details>
+          <details>
+            <summary>
+              <span>关闭主窗口后，它还会继续运行吗？</span>
+              <i aria-hidden="true">+</i>
+            </summary>
+            <div class="faq-answer">
+              会。最小化或关闭主界面后，Arrwin 会隐藏到系统托盘，遮挡监控和 Ctrl 悬停提升仍可继续工作。双击托盘图标可以重新打开主界面。
+            </div>
+          </details>
+          <details>
+            <summary>
+              <span>为什么有些窗口没有被排列？</span>
+              <i aria-hidden="true">+</i>
+            </summary>
+            <div class="faq-answer">
+              全屏窗口和小于 200 × 200 像素的窗口会被自动过滤。部分受系统保护的高权限窗口也可能无法移动，可以尝试以管理员身份运行。
+            </div>
+          </details>
+          <details>
+            <summary>
+              <span>支持哪些 Windows 版本？</span>
+              <i aria-hidden="true">+</i>
+            </summary>
+            <div class="faq-answer">
+              Arrwin 面向 Windows 10 和 Windows 11。界面会跟随系统明暗模式，并针对 Windows 11 的 Sun Valley 视觉风格做了适配。
+            </div>
+          </details>
+          <details>
+            <summary>
+              <span>设置保存在哪里？</span>
+              <i aria-hidden="true">+</i>
+            </summary>
+            <div class="faq-answer">
+              设置保存在程序目录下的 config.json 中。你可以在界面里修改，也可以关闭程序后直接编辑文件；缺少配置项时会自动使用默认值。
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="final-cta">
+        <div class="final-grid" aria-hidden="true"></div>
+        <div class="final-window final-window-left" aria-hidden="true"></div>
+        <div class="final-window final-window-right" aria-hidden="true"></div>
+        <div class="final-copy reveal">
+          <span class="section-index light-index">MAKE ROOM</span>
+          <h2>下一扇窗，<br />放到它该在的位置。</h2>
+          <p>轻巧、透明，安静地帮你管理 Windows 桌面。</p>
+          <div class="final-actions">
+            <a
+              class="button button-lime button-large"
+              href="https://github.com/teateattt/arrwin/releases"
+              target="_blank"
+              rel="noreferrer"
+            >
+              下载 Arrwin
+              <span class="button-arrow" aria-hidden="true">↓</span>
+            </a>
+            <a
+              class="text-link light-link"
+              href="https://github.com/teateattt/arrwin"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub 项目
+              <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-main">
+        <a class="brand footer-brand" href="#top" aria-label="返回页面顶部">
+          <span class="brand-mark" aria-hidden="true"><span></span><span></span></span>
+          <span class="brand-name">Arrwin</span>
+        </a>
+        <p>为整洁的 Windows 桌面而生。</p>
+        <div class="footer-links">
+          <a href="https://github.com/teateattt/arrwin" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/teateattt/arrwin/releases" target="_blank" rel="noreferrer">Releases</a>
+          <a href="https://github.com/teateattt/arrwin/blob/main/LICENSE" target="_blank" rel="noreferrer">MIT License</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© <span id="current-year">2026</span> Arrwin</span>
+        <span>Built for a calmer desktop.</span>
+      </div>
+    </footer>
+  </body>
+</html>
