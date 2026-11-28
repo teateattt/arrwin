@@ -28,7 +28,7 @@ DWMWA_BORDER_COLOR = 34
 DWMWA_CAPTION_COLOR = 35
 DWMWA_COLOR_DEFAULT = 0xFFFFFFFF
 DWMWA_COLOR_NONE = 0xFFFFFFFE
-EXPERIMENTAL_CLIENT_MICA_ALPHA = 0.97
+EXPERIMENTAL_CLIENT_MICA_ALPHA = 1.0
 
 PALETTES = {
     "light": {
@@ -167,12 +167,10 @@ def apply_app_theme(root, preference="system"):
         padding=(8, 6),
     )
     style.configure(
-        "List.TFrame",
-        background=palette["surface_alt"],
-    )
-    style.configure(
-        "WindowRow.TFrame",
-        background=palette["surface"],
+        "Panel.TFrame",
+        background=palette["window_bg"],
+        borderwidth=0,
+        relief="flat",
     )
     style.configure(
         "TLabelframe.Label",
@@ -216,6 +214,7 @@ def apply_app_theme(root, preference="system"):
         "Strong.TCheckbutton",
         font=(FONT_FAMILY, 10, "bold"),
         foreground=palette["text"],
+        background=palette["window_bg"],
         padding=(0, 2),
     )
     style.map(
@@ -231,6 +230,7 @@ def apply_app_theme(root, preference="system"):
         "Strong.Switch.TCheckbutton",
         font=(FONT_FAMILY, 10, "bold"),
         foreground=palette["text"],
+        background=palette["window_bg"],
         padding=(0, 2),
     )
     style.map(
@@ -540,7 +540,19 @@ def apply_native_window_style(root):
             root.wm_attributes(
                 "-alpha",
                 (
-                    EXPERIMENTAL_CLIENT_MICA_ALPHA
+                    max(
+                        0.5,
+                        min(
+                            1.0,
+                            float(
+                                getattr(
+                                    root,
+                                    "_arrwin_client_mica_alpha",
+                                    EXPERIMENTAL_CLIENT_MICA_ALPHA,
+                                )
+                            ),
+                        ),
+                    )
                     if client_mica_enabled
                     else 1.0
                 ),

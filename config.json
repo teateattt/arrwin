@@ -2,6 +2,7 @@
   "window_width": 820,
   "window_height": 680,
   "window_offset": 35,
+  "window_opacity": 100,
   "auto_raise_enabled": true,
   "auto_raise_nudge_overlap": true,
   "auto_raise_exclude_self": true,

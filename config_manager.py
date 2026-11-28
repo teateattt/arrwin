@@ -10,6 +10,7 @@ DEFAULT_CONFIG = {
     "window_width": 820,
     "window_height": 680,
     "window_offset": 35,
+    "window_opacity": 100,
     "auto_raise_enabled": False,
     "auto_raise_nudge_overlap": False,
     "auto_raise_exclude_self": True,
@@ -126,6 +127,17 @@ class ConfigManager:
 
     def set_window_offset(self, offset):
         self.config["window_offset"] = int(offset)
+        self.save_config()
+
+    def get_window_opacity(self):
+        opacity = int(self.config.get(
+            "window_opacity",
+            DEFAULT_CONFIG["window_opacity"],
+        ))
+        return max(85, min(100, opacity))
+
+    def set_window_opacity(self, opacity):
+        self.config["window_opacity"] = max(85, min(100, int(opacity)))
         self.save_config()
 
     def get_auto_raise_enabled(self):

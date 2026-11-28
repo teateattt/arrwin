@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import font as tkfont
 from tkinter import ttk, messagebox, scrolledtext
 from PIL import Image, ImageTk
 import win32gui
@@ -44,6 +45,7 @@ from ui_theme import (
     normalize_theme_preference,
     refresh_combobox_popdown_style,
 )
+from ui_background import create_gradient_background
 try:
     from pyvda import VirtualDesktop, get_virtual_desktops
     PYVDA_AVAILABLE = True
@@ -54,6 +56,8 @@ except ImportError:
 
 STARTUP_INITIALIZATION_DELAY_MS = 20_000
 WINDOW_TITLE = "Arrwin"
+WINDOW_LIST_ROW_HEIGHT = 30
+WINDOW_LIST_TOP_PADDING = 3
 
 
 def is_monochrome_icon(image, minimum_pixels=8, max_channel_span=24):
@@ -82,6 +86,9 @@ class WindowArranger:
     ):
         self.root = root
         self.window_list = []  # 存储 (hwnd, title, var) 的列表
+        self.window_rows = {}
+        self.window_list_icons = {}
+        self._window_list_content_height = 1
         self.config_manager = ConfigManager()  # 初始化配置管理器
         self.startup_mode = startup_mode
         self.startup_manager = startup_manager or StartupManager()
@@ -103,6 +110,11 @@ class WindowArranger:
         self._tray_hint_shown = False
         self._last_window_state = 'normal'
         self._startup_initialization_id = None
+        self._background_jobs = {}
+        self._background_photos = {}
+        self._background_items = {}
+        self._background_keys = {}
+        self._opacity_save_id = None
 
         # 绑定窗口大小改变事件
         self.root.bind('<Configure>', self.on_window_configure)
@@ -285,6 +297,10 @@ class WindowArranger:
 
         self.theme_mode = apply_app_theme(self.root, mode)
         palette = get_theme_palette(self.root)
+        if hasattr(self, 'background_canvas'):
+            self.background_canvas.configure(
+                bg=palette['window_bg'],
+            )
         if hasattr(self, 'window_list_canvas'):
             self.window_list_canvas.configure(
                 bg=palette['surface_alt'],
@@ -294,6 +310,19 @@ class WindowArranger:
             self.desktop_combobox,
         )
         self.refresh_window_list()
+        self.root.after_idle(self.layout_background_content)
+        self.root.after_idle(
+            lambda: self.schedule_background_refresh(
+                self.background_canvas,
+                'main',
+            )
+        )
+        self.root.after_idle(
+            lambda: self.schedule_background_refresh(
+                self.window_list_canvas,
+                'list',
+            )
+        )
         if first_visible is not None:
             self.root.after_idle(
                 lambda: self.window_list_canvas.yview_moveto(
@@ -304,10 +333,220 @@ class WindowArranger:
             lambda: apply_native_window_style(self.root)
         )
 
+    def on_background_canvas_configure(self, event):
+        if event.widget is not self.background_canvas:
+            return
+        self.layout_background_content()
+        self.schedule_background_refresh(
+            self.background_canvas,
+            'main',
+        )
+
+    def layout_background_content(self):
+        """Place content sections above the generated gradient canvas."""
+        required = (
+            'background_canvas',
+            'settings_frame',
+            'action_frame',
+            'status_bar',
+            'invert_selection_button',
+            'deselect_all_button',
+            'refresh_list_button',
+            'window_list_canvas',
+            'list_scrollbar',
+        )
+        if not all(hasattr(self, name) for name in required):
+            return
+
+        self.background_canvas.update_idletasks()
+        width = self.background_canvas.winfo_width()
+        height = self.background_canvas.winfo_height()
+        if width < 200 or height < 300:
+            return
+
+        margin = 12
+        gap = 10
+        available_width = max(200, width - 2 * margin)
+        settings_height = self.settings_frame.winfo_reqheight()
+        status_height = self.status_bar.winfo_reqheight()
+        action_height = self.action_frame.winfo_reqheight()
+        controls_height = max(
+            self.invert_selection_button.winfo_reqheight(),
+            self.deselect_all_button.winfo_reqheight(),
+            self.refresh_list_button.winfo_reqheight(),
+        )
+        scrollbar_width = self.list_scrollbar.winfo_reqwidth()
+
+        controls_y = margin + settings_height + gap
+        list_top = controls_y + controls_height + gap
+        status_y = max(
+            list_top + 140,
+            height - margin - status_height,
+        )
+        action_y = max(
+            list_top + 100,
+            status_y - gap - action_height,
+        )
+        list_height = max(100, action_y - gap - list_top)
+
+        self.settings_frame.place(
+            x=margin,
+            y=margin,
+            width=available_width,
+        )
+        right_edge = margin + available_width
+        refresh_width = self.refresh_list_button.winfo_reqwidth()
+        deselect_width = self.deselect_all_button.winfo_reqwidth()
+        refresh_x = right_edge - refresh_width
+        deselect_x = refresh_x - gap - deselect_width
+        invert_x = margin + int(available_width * 0.28)
+        self.invert_selection_button.place(
+            x=invert_x,
+            y=controls_y,
+        )
+        self.deselect_all_button.place(
+            x=deselect_x,
+            y=controls_y,
+        )
+        self.refresh_list_button.place(
+            x=refresh_x,
+            y=controls_y,
+        )
+        list_width = max(
+            120,
+            available_width - scrollbar_width,
+        )
+        self.window_list_canvas.place(
+            x=margin,
+            y=list_top,
+            width=list_width,
+            height=list_height,
+        )
+        self.list_scrollbar.place(
+            x=margin + list_width,
+            y=list_top,
+            height=list_height,
+        )
+        self.action_frame.place(
+            relx=0.5,
+            y=action_y,
+            anchor='n',
+        )
+        self.status_bar.place(
+            x=margin,
+            y=status_y,
+            width=available_width,
+        )
+
+    def schedule_background_refresh(self, canvas, key):
+        """Debounce gradient regeneration for a canvas."""
+        previous = self._background_jobs.pop(key, None)
+        if previous is not None:
+            try:
+                self.root.after_cancel(previous)
+            except tk.TclError:
+                pass
+        self._background_jobs[key] = self.root.after(
+            120,
+            lambda: self.render_background(canvas, key),
+        )
+
+    def render_background(self, canvas, key):
+        """Generate and cache the current theme's gradient background."""
+        self._background_jobs.pop(key, None)
+        try:
+            if not canvas.winfo_exists():
+                return
+            width = max(1, canvas.winfo_width())
+            height = max(1, canvas.winfo_height())
+            cache_key = (key, width, height, self.theme_mode)
+            if (
+                self._background_keys.get(key) == cache_key
+                and key in self._background_photos
+            ):
+                self._place_background_item(canvas, key)
+                return
+
+            image = create_gradient_background(
+                resource_path('assets', 'bg.png'),
+                (width, height),
+                self.theme_mode,
+            )
+            photo = ImageTk.PhotoImage(image, master=self.root)
+            self._background_photos[key] = photo
+            self._background_keys[key] = cache_key
+            self._place_background_item(canvas, key)
+        except Exception as exc:
+            print("生成界面渐变背景失败: {0}".format(exc))
+
+    def _place_background_item(self, canvas, key):
+        photo = self._background_photos.get(key)
+        if photo is None:
+            return
+
+        item_id = self._background_items.get(key)
+        if item_id is None:
+            item_id = canvas.create_image(
+                0,
+                0,
+                anchor='nw',
+                image=photo,
+                tags=('gradient_background',),
+            )
+            self._background_items[key] = item_id
+        else:
+            canvas.itemconfigure(item_id, image=photo)
+
+        if key == 'list':
+            self.keep_list_background_visible()
+        canvas.tag_lower(item_id)
+
+    def keep_list_background_visible(self):
+        """Keep the list gradient fixed to the visible canvas viewport."""
+        item_id = self._background_items.get('list')
+        if item_id is None:
+            return
+        try:
+            self.window_list_canvas.coords(
+                item_id,
+                0,
+                self.window_list_canvas.canvasy(0),
+            )
+            self.window_list_canvas.tag_lower(item_id)
+        except tk.TclError:
+            pass
+
+    def on_list_canvas_scroll(self, *args):
+        self.window_list_canvas.yview(*args)
+        self.keep_list_background_visible()
+
+    def on_list_canvas_configure(self, event):
+        if event.widget is not self.window_list_canvas:
+            return
+        self.update_window_list_scrollregion()
+        self.schedule_background_refresh(
+            self.window_list_canvas,
+            'list',
+        )
+
+    def update_window_list_scrollregion(self):
+        canvas = self.window_list_canvas
+        width = max(1, canvas.winfo_width())
+        height = max(
+            self._window_list_content_height,
+            canvas.winfo_height(),
+            1,
+        )
+        canvas.configure(scrollregion=(0, 0, width, height))
+        self.keep_list_background_visible()
+
     def setup_ui(self):
         """初始化界面"""
         self.root._arrwin_client_mica_enabled = (
             self.config_manager.get_experimental_client_mica()
+        )
+        self.root._arrwin_client_mica_alpha = (
+            self.config_manager.get_window_opacity() / 100.0
         )
         self.theme_mode = apply_app_theme(
             self.root,
@@ -329,18 +568,33 @@ class WindowArranger:
         self.root.minsize(820, 600)
         self.root.resizable(True, True)
 
-        # 主框架
-        main_frame = ttk.Frame(self.root, padding="12")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # 背景画布承载渐变，内容区块置于其上层
+        self.background_canvas = tk.Canvas(
+            self.root,
+            highlightthickness=0,
+            borderwidth=0,
+            bg=palette['window_bg'],
+        )
+        self.background_canvas.grid(
+            row=0,
+            column=0,
+            sticky=(tk.W, tk.E, tk.N, tk.S),
+        )
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(1, weight=1)
+        self.background_canvas.bind(
+            '<Configure>',
+            self.on_background_canvas_configure,
+        )
 
         # 设置区域
-        settings_frame = ttk.LabelFrame(main_frame, text='排列设置', padding="12")
-        settings_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        settings_frame.columnconfigure(1, weight=1)
+        self.settings_frame = ttk.Frame(
+            self.background_canvas,
+            style='Panel.TFrame',
+            padding="12",
+        )
+        self.settings_frame.columnconfigure(1, weight=1)
+        settings_frame = self.settings_frame
 
         # 偏移量设置
         ttk.Label(
@@ -371,7 +625,12 @@ class WindowArranger:
             font=(FONT_FAMILY, 10),
             style='Muted.TLabel',
         )
-        info_label.grid(row=0, column=2, sticky=tk.W)
+        info_label.grid(
+            row=0,
+            column=2,
+            columnspan=2,
+            sticky=tk.W,
+        )
 
         # 桌面选择下拉框（新添加）
         ttk.Label(
@@ -390,6 +649,48 @@ class WindowArranger:
         self.desktop_combobox.grid(row=1, column=1, sticky=tk.W, padx=(0, 20), pady=(10, 0))
         # 绑定选择变化事件
         self.desktop_combobox.bind('<<ComboboxSelected>>', self.on_desktop_changed)
+        ttk.Label(
+            settings_frame,
+            text='透明度:',
+            style='Strong.TLabel',
+        ).grid(
+            row=1,
+            column=2,
+            sticky=tk.E,
+            padx=(0, 8),
+            pady=(10, 0),
+        )
+        self.opacity_var = tk.DoubleVar(
+            value=self.config_manager.get_window_opacity()
+        )
+        opacity_controls = ttk.Frame(
+            settings_frame,
+            style='Panel.TFrame',
+        )
+        opacity_controls.grid(
+            row=1,
+            column=3,
+            sticky=tk.W,
+            pady=(10, 0),
+        )
+        self.opacity_scale = ttk.Scale(
+            opacity_controls,
+            from_=85,
+            to=100,
+            orient=tk.HORIZONTAL,
+            length=110,
+            variable=self.opacity_var,
+            command=self.on_opacity_changed,
+        )
+        self.opacity_scale.pack(side=tk.LEFT)
+        self.opacity_value_label = ttk.Label(
+            opacity_controls,
+            text='{0}%'.format(int(self.opacity_var.get())),
+            width=5,
+            anchor=tk.W,
+            style='Strong.TLabel',
+        )
+        self.opacity_value_label.pack(side=tk.LEFT, padx=(6, 0))
 
         # 自动显示被完全遮挡的窗口
         ttk.Label(
@@ -575,78 +876,64 @@ class WindowArranger:
             pady=(10, 0)
         )
 
-        # 窗口列表区域
-        list_frame = ttk.LabelFrame(main_frame, text='可见窗口列表', padding="12")
-        list_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
-        list_frame.columnconfigure(0, weight=1)
-        list_frame.rowconfigure(1, weight=1)
-
-        # 按钮区域
-        button_frame = ttk.Frame(list_frame)
-        button_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        button_frame.columnconfigure(0, weight=1)
-
-        ttk.Button(
-            button_frame,
-            text='全选',
-            command=self.select_all,
+        # 窗口列表操作按钮直接放在背景画布上
+        self.invert_selection_button = ttk.Button(
+            self.background_canvas,
+            text='反选',
+            command=self.invert_selection,
             width=10,
             style='Strong.TButton',
-        ).grid(row=0, column=0, padx=(0, 5))
-        ttk.Button(
-            button_frame,
+        )
+        self.deselect_all_button = ttk.Button(
+            self.background_canvas,
             text='全不选',
             command=self.deselect_all,
             width=10,
             style='Strong.TButton',
-        ).grid(row=0, column=1, padx=5)
-        ttk.Button(
-            button_frame,
+        )
+        self.refresh_list_button = ttk.Button(
+            self.background_canvas,
             text='刷新列表',
             command=self.refresh_window_list,
             width=10,
             style='Strong.TButton',
-        ).grid(row=0, column=2, padx=5)
+        )
 
-        # 窗口列表容器（带滚动条）
-        list_container = ttk.Frame(list_frame, style='List.TFrame')
-        list_container.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        list_container.columnconfigure(0, weight=1)
-        list_container.rowconfigure(0, weight=1)
-
-        # 创建 Canvas 和 Scrollbar
+        # 列表本身直接放在背景画布上
         self.window_list_canvas = tk.Canvas(
-            list_container,
+            self.background_canvas,
             highlightthickness=0,
             borderwidth=0,
             bg=palette['surface_alt'],
         )
         canvas = self.window_list_canvas
-        scrollbar = ttk.Scrollbar(list_container, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = ttk.Frame(canvas, style='List.TFrame')
-
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        self.list_scrollbar = ttk.Scrollbar(
+            self.background_canvas,
+            orient="vertical",
+            command=self.on_list_canvas_scroll,
         )
-
-        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-
-        list_container.columnconfigure(0, weight=1)
-        list_container.rowconfigure(0, weight=1)
+        canvas.configure(yscrollcommand=self.list_scrollbar.set)
+        canvas.bind(
+            '<Configure>',
+            self.on_list_canvas_configure,
+            add='+',
+        )
 
         # 鼠标滚轮支持
         def _on_mousewheel(event):
             canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            self.keep_list_background_visible()
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        self.root.after_idle(
+            lambda: self.schedule_background_refresh(
+                self.window_list_canvas,
+                'list',
+            )
+        )
 
         # 操作按钮区域
-        action_frame = ttk.Frame(main_frame)
-        action_frame.grid(row=2, column=0, pady=(0, 10))
+        self.action_frame = ttk.Frame(self.background_canvas)
+        action_frame = self.action_frame
 
         # 开始排列按钮
         self.arrange_btn = ttk.Button(
@@ -670,14 +957,20 @@ class WindowArranger:
         # 状态栏
         self.status_var = tk.StringVar(value='就绪')
         self.status_bar = ttk.Label(
-            main_frame,
+            self.background_canvas,
             textvariable=self.status_var,
             style='Status.TLabel',
             anchor=tk.W,
             justify=tk.LEFT,
             wraplength=max(300, width - 40),
         )
-        self.status_bar.grid(row=3, column=0, sticky=(tk.W, tk.E))
+        self.root.after_idle(self.layout_background_content)
+        self.root.after_idle(
+            lambda: self.schedule_background_refresh(
+                self.background_canvas,
+                'main',
+            )
+        )
 
     def start_saved_monitors(self):
         """Restore monitor state after the window has been created."""
@@ -722,6 +1015,41 @@ class WindowArranger:
             offset = self.config_manager.get_window_offset()
         self.offset_var.set(offset)
         self.config_manager.set_window_offset(offset)
+
+    def on_opacity_changed(self, value=None):
+        del value
+        try:
+            opacity = max(85, min(100, int(round(self.opacity_var.get()))))
+        except (tk.TclError, TypeError, ValueError):
+            opacity = self.config_manager.get_window_opacity()
+
+        self.opacity_var.set(opacity)
+        self.opacity_value_label.configure(
+            text='{0}%'.format(opacity),
+        )
+        self.root._arrwin_client_mica_alpha = opacity / 100.0
+        if (
+            self.root._arrwin_client_mica_enabled
+            and sys.platform == 'win32'
+            and sys.getwindowsversion().build >= 22000
+        ):
+            self.root.wm_attributes('-alpha', opacity / 100.0)
+
+        if self._opacity_save_id is not None:
+            try:
+                self.root.after_cancel(self._opacity_save_id)
+            except tk.TclError:
+                pass
+        self._opacity_save_id = self.root.after(
+            250,
+            self.save_opacity_setting,
+        )
+
+    def save_opacity_setting(self):
+        self._opacity_save_id = None
+        self.config_manager.set_window_opacity(
+            int(self.opacity_var.get())
+        )
 
     def update_auto_option_states(self):
         state = tk.NORMAL if self.auto_raise_var.get() else tk.DISABLED
@@ -874,6 +1202,12 @@ class WindowArranger:
         if self._exiting:
             return
         self._exiting = True
+        if self._opacity_save_id is not None:
+            try:
+                self.root.after_cancel(self._opacity_save_id)
+            except tk.TclError:
+                pass
+            self.save_opacity_setting()
         if self.theme_follower is not None:
             self.theme_follower.stop()
             self.theme_follower = None
@@ -1083,7 +1417,6 @@ class WindowArranger:
                 return None
 
             palette = get_theme_palette(self.root)
-            background_rgb = hex_to_rgb(palette["surface"])
             foreground_rgb = hex_to_rgb(palette["text"])
             large_icons, small_icons = win32gui.ExtractIconEx(
                 exe_path,
@@ -1168,13 +1501,7 @@ class WindowArranger:
                     size,
                     Image.Resampling.LANCZOS,
                 )
-                background = Image.new(
-                    "RGBA",
-                    size,
-                    background_rgb + (255,),
-                )
-                background.alpha_composite(icon_image)
-                return ImageTk.PhotoImage(background.convert("RGB"))
+                return ImageTk.PhotoImage(icon_image)
             finally:
                 if hbm_mask:
                     win32gui.DeleteObject(hbm_mask)
@@ -1288,14 +1615,28 @@ class WindowArranger:
             if var.get():
                 previously_selected.add(hwnd)
 
-        # 清空列表
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
+        canvas = self.window_list_canvas
+        canvas.delete('window_row')
+        self.window_rows.clear()
+        self.window_list_icons.clear()
         self.window_list.clear()
 
         hwnds = self.get_visible_windows()
+        palette = get_theme_palette(self.root)
+        normal_font = tkfont.Font(
+            root=self.root,
+            family=FONT_FAMILY,
+            size=10,
+        )
+        accent_font = tkfont.Font(
+            root=self.root,
+            family=FONT_FAMILY,
+            size=10,
+            weight='bold',
+        )
+        canvas_width = max(canvas.winfo_width(), 1)
 
-        for hwnd in hwnds:
+        for row_index, hwnd in enumerate(hwnds):
             title = win32gui.GetWindowText(hwnd)
             # 获取窗口尺寸
             rect = win32gui.GetWindowRect(hwnd)
@@ -1314,78 +1655,165 @@ class WindowArranger:
             var = tk.BooleanVar(value=was_selected)
             self.window_list.append((hwnd, title, var))
 
-            # 创建主框架
-            main_frame = ttk.Frame(
-                self.scrollable_frame,
-                style='WindowRow.TFrame',
+            row_tag = 'window_row_{0}'.format(hwnd)
+            tags = (row_tag, 'window_row')
+            y = (
+                WINDOW_LIST_TOP_PADDING
+                + row_index * WINDOW_LIST_ROW_HEIGHT
+                + WINDOW_LIST_ROW_HEIGHT / 2
             )
-            main_frame.pack(fill=tk.X, pady=2, padx=2)
-
-            # 创建单行显示的框架
-            content_frame = ttk.Frame(main_frame, style='WindowRow.TFrame')
-            content_frame.pack(fill=tk.X, padx=5, pady=3)
-
-            # 复选框
-            checkbox = ttk.Checkbutton(
-                content_frame,
-                variable=var
+            checkbox_left = 12
+            checkbox_top = y - 7
+            checkbox_right = checkbox_left + 14
+            checkbox_bottom = y + 7
+            checkbox_rect = canvas.create_rectangle(
+                checkbox_left,
+                checkbox_top,
+                checkbox_right,
+                checkbox_bottom,
+                fill='',
+                outline=palette['muted'],
+                width=1,
+                tags=tags,
             )
-            checkbox.pack(side=tk.LEFT, padx=(0, 5))
+            checkmark = canvas.create_line(
+                checkbox_left + 3,
+                y,
+                checkbox_left + 6,
+                y + 3,
+                checkbox_right - 2,
+                y - 4,
+                fill=palette['accent_text'],
+                width=2,
+                state=tk.HIDDEN,
+                tags=tags,
+            )
 
             # 显示图标（如果有）
+            text_x = 34
             if icon:
-                icon_label = ttk.Label(content_frame, image=icon)
-                icon_label.pack(side=tk.LEFT, padx=(0, 5))
-                # 保持对图标的引用，防止被垃圾回收
-                icon_label.image = icon
+                canvas.create_image(
+                    32,
+                    y,
+                    anchor=tk.W,
+                    image=icon,
+                    tags=tags,
+                )
+                self.window_list_icons[hwnd] = icon
+                text_x = 58
 
             # 添加进程名（蓝色）放在图标旁边
+            current_x = text_x
             if exe_path:
                 import os
                 exe_name = os.path.basename(exe_path)
-                exe_label = ttk.Label(
-                    content_frame,
+                canvas.create_text(
+                    current_x,
+                    y,
                     text=exe_name,
-                    font=(FONT_FAMILY, 10),
-                    style='Accent.TLabel',
+                    font=accent_font,
+                    fill=palette['accent'],
                     anchor=tk.W,
+                    tags=tags,
                 )
-                exe_label.pack(side=tk.LEFT, padx=(0, 6))
+                current_x += accent_font.measure(exe_name) + 6
 
             # 构建基础信息文本
             base_text = f"{title} ({width}x{height}) | [{hwnd}] | PID: {pid}"
 
             # 基础信息标签
-            base_label = ttk.Label(
-                content_frame,
+            canvas.create_text(
+                current_x,
+                y,
                 text=base_text,
-                font=(FONT_FAMILY, 10),
+                font=normal_font,
+                fill=palette['text'],
                 anchor=tk.W,
+                tags=tags,
             )
-            base_label.pack(side=tk.LEFT)
+            current_x += normal_font.measure(base_text)
 
             # 添加命令行（简短版本）
-            if cmdline and len(cmdline) <= 80:
-                cmdline_label = ttk.Label(
-                    content_frame,
+            if (
+                cmdline
+                and len(cmdline) <= 80
+                and current_x < canvas_width - 12
+            ):
+                canvas.create_text(
+                    current_x,
+                    y,
                     text=f" | {cmdline}",
-                    font=(FONT_FAMILY, 10),
-                    style='Muted.TLabel',
+                    font=normal_font,
+                    fill=palette['muted'],
                     anchor=tk.W,
+                    tags=tags,
                 )
-                cmdline_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+            self.window_rows[hwnd] = {
+                'var': var,
+                'checkbox': checkbox_rect,
+                'checkmark': checkmark,
+            }
+            canvas.tag_bind(
+                row_tag,
+                '<Button-1>',
+                lambda event, selected_hwnd=hwnd: (
+                    self.toggle_window_selection(selected_hwnd)
+                ),
+            )
+            self.update_window_checkbox(hwnd)
+
+        self._window_list_content_height = max(
+            1,
+            (
+                WINDOW_LIST_TOP_PADDING * 2
+                + len(hwnds) * WINDOW_LIST_ROW_HEIGHT
+            ),
+        )
+        self.update_window_list_scrollregion()
 
         self.status_var.set(f'找到 {len(hwnds)} 个可见窗口')
 
-    def select_all(self):
-        """全选所有窗口"""
+    def toggle_window_selection(self, hwnd):
+        """Toggle one Canvas-rendered window row."""
+        row = self.window_rows.get(hwnd)
+        if row is None:
+            return
+        row['var'].set(not row['var'].get())
+        self.update_window_checkbox(hwnd)
+
+    def update_window_checkbox(self, hwnd):
+        """Refresh the Canvas checkbox for one window."""
+        row = self.window_rows.get(hwnd)
+        if row is None:
+            return
+        palette = get_theme_palette(self.root)
+        checked = bool(row['var'].get())
+        self.window_list_canvas.itemconfigure(
+            row['checkbox'],
+            fill=palette['accent'] if checked else '',
+            outline=palette['accent'] if checked else palette['muted'],
+        )
+        self.window_list_canvas.itemconfigure(
+            row['checkmark'],
+            state=tk.NORMAL if checked else tk.HIDDEN,
+        )
+
+    def update_all_window_checkboxes(self):
+        for hwnd in self.window_rows:
+            self.update_window_checkbox(hwnd)
+
+    def invert_selection(self):
+        """反转所有窗口的选中状态"""
         for hwnd, title, var in self.window_list:
-            var.set(True)
+            var.set(not var.get())
+        self.update_all_window_checkboxes()
 
     def deselect_all(self):
         """全不选所有窗口"""
         for hwnd, title, var in self.window_list:
             var.set(False)
+        self.update_all_window_checkboxes()
 
     def arrange_selected_windows(self):
         """排列选中的窗口"""
