@@ -33,6 +33,7 @@ from tray_manager import (
 )
 from ui_theme import (
     FONT_FAMILY,
+    SystemThemeFollower,
     apply_app_theme,
     apply_native_window_style,
     configure_tk_scaling,
@@ -40,6 +41,8 @@ from ui_theme import (
     get_theme_palette,
     get_switch_checkbutton_style,
     hex_to_rgb,
+    normalize_theme_preference,
+    refresh_combobox_popdown_style,
 )
 try:
     from pyvda import VirtualDesktop, get_virtual_desktops
@@ -82,7 +85,9 @@ class WindowArranger:
         self.config_manager = ConfigManager()  # 初始化配置管理器
         self.startup_mode = startup_mode
         self.startup_manager = startup_manager or StartupManager()
+        self.theme_preference = normalize_theme_preference(theme_mode)
         self.theme_mode = theme_mode
+        self.theme_follower = None
         self._initial_width = None  # 记录初始宽度
         self._initial_height = None  # 记录初始高度
         self._is_resizing = False  # 是否正在调整大小
@@ -106,6 +111,12 @@ class WindowArranger:
         self.root.bind('<Unmap>', self.on_window_unmap)
 
         self.setup_ui()
+        self.theme_follower = SystemThemeFollower(
+            self.root,
+            preference=self.theme_preference,
+            on_change=self.on_system_theme_changed,
+            initial_mode=self.theme_mode,
+        )
         self.root.after_idle(
             lambda: apply_native_window_style(self.root)
         )
@@ -132,6 +143,8 @@ class WindowArranger:
                     '系统托盘不可用，已显示主窗口'
                 )
             self.root.after(0, self.start_saved_monitors)
+            if self.theme_preference == 'system':
+                self.theme_follower.start()
 
     def on_window_configure(self, event):
         """窗口配置改变事件（开始调整大小时）"""
@@ -186,6 +199,9 @@ class WindowArranger:
         if self._in_tray:
             return
 
+        if self.theme_follower is not None:
+            self.theme_follower.suspend()
+
         try:
             state = self.root.state()
             if state in ('normal', 'zoomed'):
@@ -207,12 +223,25 @@ class WindowArranger:
         if self._exiting:
             return
         try:
+            if (
+                self.theme_follower is not None
+                and self.theme_preference == 'system'
+            ):
+                self.theme_follower.sync_now()
             self._in_tray = False
             self.root.deiconify()
             if self._last_window_state == 'zoomed':
                 self.root.state('zoomed')
             self.root.lift()
             self.root.focus_force()
+            self.root.after_idle(
+                lambda: apply_native_window_style(self.root)
+            )
+            if (
+                self.theme_follower is not None
+                and self.theme_preference == 'system'
+            ):
+                self.theme_follower.resume(refresh_now=False)
         except tk.TclError:
             pass
 
@@ -244,9 +273,43 @@ class WindowArranger:
             self._initial_height = actual_height
             self._is_resizing = False
 
+    def on_system_theme_changed(self, mode):
+        """Reapply the theme and theme-dependent controls at runtime."""
+        if self._exiting or mode == self.theme_mode:
+            return
+
+        try:
+            first_visible = self.window_list_canvas.yview()[0]
+        except (AttributeError, tk.TclError):
+            first_visible = None
+
+        self.theme_mode = apply_app_theme(self.root, mode)
+        palette = get_theme_palette(self.root)
+        if hasattr(self, 'window_list_canvas'):
+            self.window_list_canvas.configure(
+                bg=palette['surface_alt'],
+            )
+        refresh_combobox_popdown_style(
+            self.root,
+            self.desktop_combobox,
+        )
+        self.refresh_window_list()
+        if first_visible is not None:
+            self.root.after_idle(
+                lambda: self.window_list_canvas.yview_moveto(
+                    first_visible
+                )
+            )
+        self.root.after_idle(
+            lambda: apply_native_window_style(self.root)
+        )
+
     def setup_ui(self):
         """初始化界面"""
-        self.theme_mode = apply_app_theme(self.root, self.theme_mode)
+        self.theme_mode = apply_app_theme(
+            self.root,
+            self.theme_preference,
+        )
         palette = get_theme_palette(self.root)
         switch_style = get_switch_checkbutton_style(self.root)
 
@@ -549,12 +612,13 @@ class WindowArranger:
         list_container.rowconfigure(0, weight=1)
 
         # 创建 Canvas 和 Scrollbar
-        canvas = tk.Canvas(
+        self.window_list_canvas = tk.Canvas(
             list_container,
             highlightthickness=0,
             borderwidth=0,
             bg=palette['surface_alt'],
         )
+        canvas = self.window_list_canvas
         scrollbar = ttk.Scrollbar(list_container, orient="vertical", command=canvas.yview)
         self.scrollable_frame = ttk.Frame(canvas, style='List.TFrame')
 
@@ -807,6 +871,9 @@ class WindowArranger:
         if self._exiting:
             return
         self._exiting = True
+        if self.theme_follower is not None:
+            self.theme_follower.stop()
+            self.theme_follower = None
         if self.tray_controller is not None:
             self.tray_controller.stop()
             self.tray_controller = None

@@ -24,6 +24,9 @@ except ImportError:
 
 FONT_FAMILY = "Microsoft YaHei UI"
 THEME_PREFERENCES = ("system", "light", "dark")
+DWMWA_BORDER_COLOR = 34
+DWMWA_CAPTION_COLOR = 35
+DWMWA_COLOR_NONE = 0xFFFFFFFE
 
 PALETTES = {
     "light": {
@@ -296,6 +299,125 @@ def apply_app_theme(root, preference="system"):
     return mode
 
 
+def refresh_combobox_popdown_style(root, combobox):
+    """Update an existing Combobox popdown Listbox after a theme change."""
+    palette = get_theme_palette(root)
+    try:
+        popdown = str(
+            root.tk.call(
+                "ttk::combobox::PopdownWindow",
+                str(combobox),
+            )
+        )
+        listbox = popdown + ".f.l"
+        root.tk.call(
+            listbox,
+            "configure",
+            "-font",
+            "{{{0}}} 10 bold".format(FONT_FAMILY),
+            "-background",
+            palette["surface"],
+            "-foreground",
+            palette["text"],
+            "-selectbackground",
+            palette["accent"],
+            "-selectforeground",
+            palette["accent_text"],
+        )
+    except tk.TclError:
+        pass
+
+
+class SystemThemeFollower:
+    """Poll Windows app theme while the main window is visible."""
+
+    def __init__(
+        self,
+        root,
+        preference="system",
+        on_change=None,
+        interval_ms=1500,
+        initial_mode=None,
+        theme_reader=None,
+    ):
+        self.root = root
+        self.preference = normalize_theme_preference(preference)
+        self.on_change = on_change
+        self.interval_ms = interval_ms
+        self._theme_reader = (
+            theme_reader
+            or (lambda: resolve_theme_mode(self.preference))
+        )
+        self._last_mode = initial_mode or self._theme_reader()
+        self._after_id = None
+        self._active = False
+
+    @property
+    def active(self):
+        return self._active
+
+    def start(self):
+        if self._active:
+            return
+        self._active = True
+        self._schedule()
+
+    def suspend(self):
+        self._active = False
+        self._cancel_scheduled()
+
+    def stop(self):
+        self.suspend()
+
+    def resume(self, refresh_now=True):
+        if self._active:
+            return
+        if refresh_now:
+            self.sync_now()
+        self._active = True
+        self._schedule()
+
+    def sync_now(self):
+        mode = self._theme_reader()
+        if mode == self._last_mode:
+            return mode
+
+        self._last_mode = mode
+        if self.on_change is not None:
+            try:
+                self.on_change(mode)
+            except Exception as exc:
+                print("切换系统主题失败: {0}".format(exc))
+        return mode
+
+    def _schedule(self):
+        if not self._active or self._after_id is not None:
+            return
+        try:
+            self._after_id = self.root.after(
+                self.interval_ms,
+                self._poll,
+            )
+        except tk.TclError:
+            self._active = False
+
+    def _cancel_scheduled(self):
+        if self._after_id is None:
+            return
+        try:
+            self.root.after_cancel(self._after_id)
+        except tk.TclError:
+            pass
+        self._after_id = None
+
+    def _poll(self):
+        self._after_id = None
+        if not self._active:
+            return
+        self.sync_now()
+        self._schedule()
+
+
 def enable_dpi_awareness():
     """Enable Windows system DPI awareness before creating Tk."""
     if sys.platform != "win32":
@@ -345,25 +467,65 @@ def configure_tk_scaling(root):
             pass
 
 
+def get_tk_window_handle(root):
+    """Return the top-level Win32 handle for a Tk root window."""
+    root.update_idletasks()
+    client_handle = int(root.winfo_id())
+    parent_handle = int(
+        ctypes.windll.user32.GetParent(client_handle)
+    )
+    return parent_handle or client_handle
+
+
+def set_dwm_attribute(hwnd, attribute, value):
+    """Set an integer DWM window attribute and return success."""
+    data = ctypes.c_uint(value & 0xFFFFFFFF)
+    result = ctypes.windll.dwmapi.DwmSetWindowAttribute(
+        hwnd,
+        attribute,
+        ctypes.byref(data),
+        ctypes.sizeof(data),
+    )
+    return result == 0
+
+
 def apply_native_window_style(root):
-    """Apply title bar color and immersive dark mode through DWM."""
+    """Apply Mica frame styling and native dark mode through DWM."""
     if sys.platform != "win32" or pywinstyles is None:
         return False
 
     try:
-        root.update_idletasks()
         version = sys.getwindowsversion()
         mode = getattr(root, "_arrwin_theme_mode", "light")
         palette = get_theme_palette(root)
+        hwnd = get_tk_window_handle(root)
 
         if version.build >= 22000:
-            pywinstyles.apply_style(
-                root,
-                "dark" if mode == "dark" else "light",
+            mica_applied = False
+            if version.build >= 22621:
+                # DWMSBT_MAINWINDOW (Mica).
+                mica_applied = set_dwm_attribute(hwnd, 38, 2)
+            if not mica_applied:
+                pywinstyles.apply_style(root, "mica")
+
+            # Keep the client area opaque while the frame uses Mica.
+            set_dwm_attribute(
+                hwnd,
+                20,
+                1 if mode == "dark" else 0,
             )
-            pywinstyles.change_header_color(
-                root,
-                palette["titlebar"],
+            # DWMWCP_ROUND.
+            set_dwm_attribute(hwnd, 33, 2)
+            # Let the system backdrop show through active title bars/borders.
+            set_dwm_attribute(
+                hwnd,
+                DWMWA_CAPTION_COLOR,
+                DWMWA_COLOR_NONE,
+            )
+            set_dwm_attribute(
+                hwnd,
+                DWMWA_BORDER_COLOR,
+                DWMWA_COLOR_NONE,
             )
             pywinstyles.change_title_color(
                 root,
