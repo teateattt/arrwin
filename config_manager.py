@@ -17,6 +17,7 @@ DEFAULT_CONFIG = {
     "ctrl_move_required": True,
     "ctrl_move_raise_activate": False,
     "ctrl_move_raise_exclude_self": True,
+    "experimental_client_mica": True,
 }
 
 
@@ -168,3 +169,9 @@ class ConfigManager:
 
     def set_ctrl_move_raise_exclude_self(self, enabled):
         self._set_bool("ctrl_move_raise_exclude_self", enabled)
+
+    def get_experimental_client_mica(self):
+        return self._get_bool("experimental_client_mica")
+
+    def set_experimental_client_mica(self, enabled):
+        self._set_bool("experimental_client_mica", enabled)

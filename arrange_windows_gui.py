@@ -306,6 +306,9 @@ class WindowArranger:
 
     def setup_ui(self):
         """初始化界面"""
+        self.root._arrwin_client_mica_enabled = (
+            self.config_manager.get_experimental_client_mica()
+        )
         self.theme_mode = apply_app_theme(
             self.root,
             self.theme_preference,

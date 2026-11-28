@@ -27,6 +27,7 @@ THEME_PREFERENCES = ("system", "light", "dark")
 DWMWA_BORDER_COLOR = 34
 DWMWA_CAPTION_COLOR = 35
 DWMWA_COLOR_NONE = 0xFFFFFFFE
+EXPERIMENTAL_CLIENT_MICA_ALPHA = 0.97
 
 PALETTES = {
     "light": {
@@ -499,6 +500,9 @@ def apply_native_window_style(root):
         mode = getattr(root, "_arrwin_theme_mode", "light")
         palette = get_theme_palette(root)
         hwnd = get_tk_window_handle(root)
+        client_mica_enabled = bool(
+            getattr(root, "_arrwin_client_mica_enabled", False)
+        )
 
         if version.build >= 22000:
             mica_applied = False
@@ -530,6 +534,14 @@ def apply_native_window_style(root):
             pywinstyles.change_title_color(
                 root,
                 palette["titlebar_text"],
+            )
+            root.wm_attributes(
+                "-alpha",
+                (
+                    EXPERIMENTAL_CLIENT_MICA_ALPHA
+                    if client_mica_enabled
+                    else 1.0
+                ),
             )
         else:
             pywinstyles.apply_style(

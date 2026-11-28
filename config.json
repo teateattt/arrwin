@@ -8,5 +8,6 @@
   "ctrl_move_raise_enabled": false,
   "ctrl_move_required": true,
   "ctrl_move_raise_activate": false,
-  "ctrl_move_raise_exclude_self": true
+  "ctrl_move_raise_exclude_self": true,
+  "experimental_client_mica": true
 }
